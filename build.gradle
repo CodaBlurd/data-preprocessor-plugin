@@ -49,6 +49,13 @@ publishPlugin {
     token = System.getenv("PUBLISH_TOKEN")
 }
 
+// buildSearchableOptions launches a headless IDE to index plugin settings for
+// the Settings search bar. Our plugin has no settings pages, so this task is
+// unnecessary and is disabled to avoid headless-display failures on macOS.
+tasks.named('buildSearchableOptions') {
+    enabled = false
+}
+
 test {
     useJUnitPlatform()
 }
