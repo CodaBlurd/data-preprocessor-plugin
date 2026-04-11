@@ -1,0 +1,70 @@
+<idea-plugin>
+    <id>com.datapreprocessor.plugin</id>
+    <name>Data Preprocessor</name>
+    <version>1.0.0</version>
+    <vendor email="your@email.com" url="https://github.com/yourhandle/data-preprocessor-plugin">
+        YourName
+    </vendor>
+
+    <description><![CDATA[
+        <b>Data Preprocessor</b> — an in-IDE toolkit for data scientists.<br/><br/>
+
+        Load any CSV file directly inside IntelliJ (or any JetBrains IDE) and:
+        <ul>
+          <li>Profile every column: type, null count, unique count, mean, median, std, min, max</li>
+          <li>Handle missing values — drop rows, fill with mean / median / mode / custom value</li>
+          <li>Remove duplicate rows</li>
+          <li>Detect and remove outliers using the IQR method</li>
+          <li>Normalize numeric columns (Min-Max or Z-Score)</li>
+          <li>Cast columns to int, float, boolean, or string</li>
+          <li>Generate ready-to-run <b>Python (pandas)</b> preprocessing code from your choices</li>
+        </ul>
+
+        Compatible with IntelliJ IDEA, PyCharm, DataGrip, and all other JetBrains IDEs.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Tool window shown on the right side of the IDE -->
+        <toolWindow
+            id="Data Preprocessor"
+            secondary="false"
+            anchor="right"
+            factoryClass="com.datapreprocessor.toolwindow.DataPreprocessorToolWindowFactory"
+            icon="/icons/dataPreprocessor.svg"/>
+
+        <!-- Notification group for error/info messages -->
+        <notificationGroup
+            id="DataPreprocessor.Notifications"
+            displayType="BALLOON"/>
+    </extensions>
+
+    <actions>
+        <group id="DataPreprocessor.ContextMenu"
+               text="Data Preprocessor"
+               popup="true">
+            <!-- Appear in the Project view right-click menu -->
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+
+            <action id="DataPreprocessor.OpenFile"
+                    class="com.datapreprocessor.actions.OpenDataFileAction"
+                    text="Open in Data Preprocessor"
+                    description="Load this CSV file into the Data Preprocessor tool window"/>
+
+            <action id="DataPreprocessor.GenerateCode"
+                    class="com.datapreprocessor.actions.GeneratePreprocessingCodeAction"
+                    text="Generate Preprocessing Code"
+                    description="Insert generated pandas preprocessing code at the caret"/>
+        </group>
+
+        <!-- Top-level Tools menu entry -->
+        <group id="DataPreprocessor.ToolsMenu">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <action id="DataPreprocessor.OpenTool"
+                    class="com.datapreprocessor.actions.OpenDataFileAction"
+                    text="Open Data Preprocessor…"
+                    description="Open a CSV file in the Data Preprocessor"/>
+        </group>
+    </actions>
+</idea-plugin>

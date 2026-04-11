@@ -1,0 +1,59 @@
+plugins {
+    id 'java'
+    id 'org.jetbrains.intellij' version '1.17.3'
+}
+
+group pluginGroup
+version pluginVersion
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // CSV parsing
+    implementation 'org.apache.commons:commons-csv:1.10.0'
+    // Math for stats (mean, stddev, IQR, etc.)
+    implementation 'org.apache.commons:commons-math3:3.6.1'
+    // Utilities
+    implementation 'org.apache.commons:commons-lang3:3.14.0'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.1'
+    testImplementation 'org.assertj:assertj-core:3.25.1'
+}
+
+intellij {
+    version = platformVersion
+    type    = platformType
+    plugins = []
+}
+
+patchPluginXml {
+    sinceBuild = pluginSinceBuild
+    untilBuild = pluginUntilBuild
+    changeNotes = """
+        <ul>
+          <li>1.0.0 — Initial release: CSV loading, column profiling, cleaning operations,
+              outlier removal, normalization, and pandas code generation.</li>
+        </ul>
+    """
+}
+
+signPlugin {
+    certificateChain = System.getenv("CERTIFICATE_CHAIN")
+    privateKey        = System.getenv("PRIVATE_KEY")
+    password          = System.getenv("PRIVATE_KEY_PASSWORD")
+}
+
+publishPlugin {
+    token = System.getenv("PUBLISH_TOKEN")
+}
+
+test {
+    useJUnitPlatform()
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}

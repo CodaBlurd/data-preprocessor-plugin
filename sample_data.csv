@@ -1,0 +1,71 @@
+id,age,salary,department,years_experience,performance_score,city,is_remote,bonus
+1,28,72000,Engineering,3,8.5,New York,true,5000
+2,34,95000,Engineering,9,9.1,San Francisco,false,8000
+3,45,110000,Management,20,7.8,Chicago,false,12000
+4,29,68000,Marketing,4,8.0,Austin,true,4500
+5,52,130000,Management,27,9.4,New York,false,15000
+6,31,80000,Engineering,6,8.8,Seattle,true,6000
+7,27,61000,Sales,2,7.2,Miami,false,3000
+8,38,88000,Engineering,13,8.3,Boston,false,7000
+9,,75000,Marketing,5,8.1,Austin,true,5500
+10,33,92000,Engineering,8,,San Francisco,false,7500
+11,41,105000,Management,16,9.0,Chicago,false,11000
+12,26,58000,Sales,1,6.8,Miami,false,2500
+13,29,68000,Marketing,4,8.0,Austin,true,4500
+14,55,145000,Management,30,9.7,New York,false,18000
+15,36,84000,Engineering,11,8.6,Seattle,true,6500
+16,30,,Marketing,5,7.9,Dallas,true,
+17,43,99000,Engineering,18,8.4,Boston,false,8500
+18,28,71000,Sales,3,7.5,Phoenix,true,4000
+19,39,91000,Marketing,14,8.2,Chicago,false,7000
+20,32,78000,Engineering,7,8.7,Seattle,true,5800
+21,29,68000,Marketing,4,8.0,Austin,true,4500
+22,47,115000,Management,22,9.2,New York,false,13000
+23,,63000,Sales,2,7.0,,false,3200
+24,35,86000,Engineering,10,8.5,Boston,true,6800
+25,31,77000,Marketing,6,8.3,Dallas,false,5600
+26,50,125000,Management,25,9.3,San Francisco,false,14000
+27,28,69000,Engineering,3,8.1,Austin,true,4800
+28,42,101000,Engineering,17,8.9,Seattle,false,9000
+29,37,89000,Marketing,12,8.4,Chicago,true,7200
+30,33,81000,Sales,8,7.8,Miami,false,5000
+31,26,57000,Sales,1,6.5,Phoenix,false,2000
+32,44,108000,Management,19,9.1,New York,false,11500
+33,29,72000,Engineering,4,8.3,Boston,true,5200
+34,38,93000,Marketing,13,8.6,Dallas,false,7800
+35,999,88000,Engineering,10,8.0,Seattle,false,6000
+36,31,79000,Sales,6,7.6,Miami,true,4200
+37,,,,,,,,
+38,46,112000,Management,21,9.0,Chicago,false,12500
+39,30,74000,Engineering,5,8.4,Austin,true,5400
+40,34,85000,Marketing,9,8.2,San Francisco,false,6700
+41,28,67000,Sales,3,7.3,Phoenix,true,3800
+42,52,128000,Management,27,9.5,New York,false,16000
+43,36,87000,Engineering,11,8.7,Seattle,true,7100
+44,29,70000,Marketing,4,8.0,Dallas,false,4600
+45,41,103000,Engineering,16,8.8,Boston,false,9200
+46,33,82000,Sales,8,7.9,Miami,true,5300
+47,27,60000,Sales,2,7.1,Phoenix,false,2800
+48,48,118000,Management,23,9.3,San Francisco,false,13500
+49,35,88000,Engineering,10,8.5,Chicago,true,7000
+50,32,80000,Marketing,7,8.4,Austin,false,6000
+51,40,96000,Engineering,15,8.6,Seattle,false,8200
+52,29,68000,Marketing,4,8.0,Austin,true,4500
+53,37,90000,Sales,12,7.9,Miami,false,6500
+54,31,76000,Engineering,6,8.3,Boston,true,5700
+55,45,111000,Management,20,9.1,New York,false,12000
+56,28,65000,Sales,3,7.2,Phoenix,false,3500
+57,34,83000,Marketing,9,8.3,Dallas,true,6400
+58,39,94000,Engineering,14,8.8,Seattle,false,8000
+59,,85000,Marketing,10,,Chicago,true,
+60,33,0,Engineering,8,8.5,Boston,false,6800
+61,30,75000,Sales,5,7.7,Miami,true,4300
+62,43,107000,Management,18,9.0,San Francisco,false,11200
+63,28,70000,Engineering,3,8.2,Austin,true,5100
+64,36,86000,Marketing,11,8.4,Dallas,false,6900
+65,50,123000,Management,25,9.4,New York,false,14500
+66,32,79000,Engineering,7,8.6,Seattle,true,5900
+67,27,62000,Sales,2,7.0,Phoenix,false,3000
+68,41,100000,Engineering,16,8.7,Boston,false,8800
+69,35,84000,Marketing,10,8.3,Chicago,true,6600
+70,29,68000,Marketing,4,8.0,Austin,true,4500
