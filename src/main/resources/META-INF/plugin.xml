@@ -2,49 +2,57 @@
     <id>com.datapreprocessor.plugin</id>
     <name>Data Preprocessor</name>
     <version>1.0.0</version>
-    <vendor email="your@email.com" url="https://github.com/yourhandle/data-preprocessor-plugin">
-        YourName
+    <vendor email="admin@keencodelabs.com" url="https://github.com/codaBlurd/data-preprocessor-plugin">
+        Keen Code Labs
     </vendor>
 
     <description><![CDATA[
-        <b>Data Preprocessor</b> — an in-IDE toolkit for data scientists.<br/><br/>
+        <b>Clean and transform CSV data directly inside your JetBrains IDE.</b><br/><br/>
 
-        Load any CSV file directly inside IntelliJ (or any JetBrains IDE) and:
+        <b>Data Preprocessor</b> helps data scientists, analysts, and developers prepare datasets faster without switching to external scripts or notebooks.<br/><br/>
+
+        Load a CSV file, inspect each column, apply common preprocessing steps visually, and generate ready-to-run <b>Python (pandas)</b> code from your selected transformations.<br/><br/>
+
+        <b>Key features:</b>
         <ul>
-          <li>Profile every column: type, null count, unique count, mean, median, std, min, max</li>
-          <li>Handle missing values — drop rows, fill with mean / median / mode / custom value</li>
-          <li>Remove duplicate rows</li>
-          <li>Detect and remove outliers using the IQR method</li>
-          <li>Normalize numeric columns (Min-Max or Z-Score)</li>
-          <li>Cast columns to int, float, boolean, or string</li>
-          <li>Generate ready-to-run <b>Python (pandas)</b> preprocessing code from your choices</li>
+          <li><b>Column profiling</b>: view type, null count, unique count, mean, median, standard deviation, min, and max</li>
+          <li><b>Missing value handling</b>: drop rows or fill values using mean, median, mode, or a custom value</li>
+          <li><b>Duplicate removal</b>: quickly detect and remove duplicate rows</li>
+          <li><b>Outlier removal</b>: identify and remove outliers using the IQR method</li>
+          <li><b>Normalization</b>: apply Min-Max scaling or Z-Score normalization to numeric columns</li>
+          <li><b>Type casting</b>: convert columns to int, float, boolean, or string</li>
+          <li><b>Pandas code generation</b>: export your preprocessing steps as ready-to-run Python code</li>
         </ul>
 
-        Compatible with IntelliJ IDEA, PyCharm, DataGrip, and all other JetBrains IDEs.
+        <b>Why use Data Preprocessor?</b>
+        <ul>
+          <li>Save time on repetitive preprocessing tasks</li>
+          <li>Work without leaving your IDE</li>
+          <li>Visually prepare data, then export clean pandas code for production or notebooks</li>
+        </ul>
+
+        Compatible with <b>IntelliJ IDEA</b>, <b>PyCharm</b>, <b>DataGrip</b>, and other JetBrains IDEs.
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <!-- Tool window shown on the right side of the IDE -->
         <toolWindow
-            id="Data Preprocessor"
-            secondary="false"
-            anchor="right"
-            factoryClass="com.datapreprocessor.toolwindow.DataPreprocessorToolWindowFactory"
-            icon="/icons/dataPreprocessor.svg"/>
+                id="Data Preprocessor"
+                secondary="false"
+                anchor="right"
+                factoryClass="com.datapreprocessor.toolwindow.DataPreprocessorToolWindowFactory"
+                icon="/icons/dataPreprocessor.svg"/>
 
-        <!-- Notification group for error/info messages -->
         <notificationGroup
-            id="DataPreprocessor.Notifications"
-            displayType="BALLOON"/>
+                id="DataPreprocessor.Notifications"
+                displayType="BALLOON"/>
     </extensions>
 
     <actions>
         <group id="DataPreprocessor.ContextMenu"
                text="Data Preprocessor"
                popup="true">
-            <!-- Appear in the Project view right-click menu -->
             <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
 
             <action id="DataPreprocessor.OpenFile"
@@ -58,7 +66,6 @@
                     description="Insert generated pandas preprocessing code at the caret"/>
         </group>
 
-        <!-- Top-level Tools menu entry -->
         <group id="DataPreprocessor.ToolsMenu">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
             <action id="DataPreprocessor.OpenTool"
