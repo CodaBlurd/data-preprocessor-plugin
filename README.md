@@ -63,14 +63,14 @@ Visit [plugins.jetbrains.com/plugin/31226-data-preprocessor](https://plugins.jet
 <table>
   <tr>
     <td><img src="marketplace-screenshots/01_csv_preview.png" alt="CSV Preview" width="480"/></td>
-    <td><img src="marketplace-screenshots/02_column_profile.png" alt="Column Profiler" width="480"/></td>
+    <td><img src="marketplace-screenshots/02_column_profiles.png" alt="Column Profiler" width="480"/></td>
   </tr>
   <tr>
     <td align="center"><em>CSV Preview tab</em></td>
     <td align="center"><em>Column Profiler tab</em></td>
   </tr>
   <tr>
-    <td><img src="marketplace-screenshots/03_clean_operations.png" alt="Clean Operations" width="480"/></td>
+    <td><img src="marketplace-screenshots/03_clean_transform.png" alt="Clean Operations" width="480"/></td>
     <td><img src="marketplace-screenshots/04_generated_code.png" alt="Generated Python Code" width="480"/></td>
   </tr>
   <tr>

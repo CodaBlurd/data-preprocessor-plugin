@@ -26,6 +26,7 @@ import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.io.IOException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -48,6 +49,13 @@ public class DataPreprocessorToolWindow {
 
     // Max rows shown in the preview table to keep the UI fast
     private static final int PREVIEW_ROWS = 200;
+
+    // Card names for the Preview tab
+    private static final String CARD_EMPTY = "empty";
+    private static final String CARD_TABLE = "table";
+
+    // Preview card panel (switches between the demo GIF and the data table)
+    private JPanel previewCard;
 
     private final Project project;
 
@@ -170,7 +178,39 @@ public class DataPreprocessorToolWindow {
     private JComponent buildPreviewTab() {
         previewTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
         previewTable.setFillsViewportHeight(true);
-        return new JBScrollPane(previewTable);
+
+        previewCard = new JPanel(new CardLayout());
+
+        // ── Empty state: animated demo GIF ───────────────────────────────────
+        JPanel emptyPane = new JPanel(new GridBagLayout());
+        URL gifUrl = getClass().getResource("/demo_embed.gif");
+        if (gifUrl != null) {
+            // ImageIcon natively animates GIFs — no extra libraries needed
+            ImageIcon animatedIcon = new ImageIcon(gifUrl);
+            JLabel gifLabel = new JLabel(animatedIcon);
+
+            JPanel inner = new JPanel();
+            inner.setLayout(new BoxLayout(inner, BoxLayout.Y_AXIS));
+            inner.setOpaque(false);
+            gifLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+            inner.add(gifLabel);
+            inner.add(Box.createVerticalStrut(10));
+
+            JLabel hint = new JLabel("Browse a CSV file above, or right-click any .csv → Open in Data Preprocessor");
+            hint.setForeground(JBColor.GRAY);
+            hint.setAlignmentX(Component.CENTER_ALIGNMENT);
+            inner.add(hint);
+
+            emptyPane.add(inner);
+        } else {
+            // Fallback if resource is missing (e.g. dev mode without full build)
+            emptyPane.add(new JLabel("Load a CSV file to get started."));
+        }
+
+        previewCard.add(emptyPane,                   CARD_EMPTY);
+        previewCard.add(new JBScrollPane(previewTable), CARD_TABLE);
+
+        return previewCard;
     }
 
     // ── Tab 2: Profiles ───────────────────────────────────────────────────────
@@ -520,6 +560,10 @@ public class DataPreprocessorToolWindow {
         previewTable.setModel(new DefaultTableModel(data, cols) {
             @Override public boolean isCellEditable(int r, int c) { return false; }
         });
+        // Switch the card so the data table is visible instead of the demo GIF
+        if (previewCard != null) {
+            ((CardLayout) previewCard.getLayout()).show(previewCard, CARD_TABLE);
+        }
     }
 
     private void refreshProfileTable() {
