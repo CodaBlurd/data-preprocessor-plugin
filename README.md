@@ -11,7 +11,7 @@
 
 ---
 
-![CSV Preview](marketplace-screenshots/01_csv_preview.png)
+![Data Preprocessor demo](demo.gif)
 
 ---
 
