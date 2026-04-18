@@ -33,7 +33,11 @@ patchPluginXml {
     untilBuild = pluginUntilBuild
     changeNotes = """
         <ul>
-          <li>1.0.0 — Initial release: CSV loading, column profiling, cleaning operations,
+          <li><b>1.0.1</b> — Bug fix: resolved threading warning (ActionUpdateThread.BGT) in the
+              right-click context menu action. Animated walkthrough now shown in the Preview tab
+              when no file is loaded. Expanded IDE compatibility to build 253 (2025.3).
+              Privacy policy added to plugin description.</li>
+          <li><b>1.0.0</b> — Initial release: CSV loading, column profiling, cleaning operations,
               outlier removal, normalization, and pandas code generation.</li>
         </ul>
     """

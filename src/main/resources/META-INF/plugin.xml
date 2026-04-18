@@ -1,37 +1,41 @@
 <idea-plugin>
     <id>com.datapreprocessor.plugin</id>
     <name>Data Preprocessor</name>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <vendor email="admin@keencodelabs.com" url="https://github.com/codaBlurd/data-preprocessor-plugin">
         Keen Code Labs
     </vendor>
 
     <description><![CDATA[
-        <b>Clean and transform CSV data directly inside your JetBrains IDE.</b><br/><br/>
+        <p>Stop writing repetitive pandas preprocessing scripts.</p>
 
-        <b>Data Preprocessor</b> helps data scientists, analysts, and developers prepare datasets faster without switching to external scripts or notebooks.<br/><br/>
+        <p><b>Data Preprocessor</b> is an in-IDE toolkit for cleaning, transforming, and preparing CSV datasets
+        directly inside your JetBrains IDE.</p>
 
-        Load a CSV file, inspect each column, apply common preprocessing steps visually, and generate ready-to-run <b>Python (pandas)</b> code from your selected transformations.<br/><br/>
+        <p>Load a CSV file, profile your data instantly, handle missing values, remove duplicates and outliers,
+        normalize columns, and generate ready-to-run <b>Python (pandas)</b> code from your workflow —
+        all without leaving the IDE.</p>
 
         <b>Key features:</b>
         <ul>
-          <li><b>Column profiling</b>: view type, null count, unique count, mean, median, standard deviation, min, and max</li>
-          <li><b>Missing value handling</b>: drop rows or fill values using mean, median, mode, or a custom value</li>
-          <li><b>Duplicate removal</b>: quickly detect and remove duplicate rows</li>
-          <li><b>Outlier removal</b>: identify and remove outliers using the IQR method</li>
-          <li><b>Normalization</b>: apply Min-Max scaling or Z-Score normalization to numeric columns</li>
-          <li><b>Type casting</b>: convert columns to int, float, boolean, or string</li>
-          <li><b>Pandas code generation</b>: export your preprocessing steps as ready-to-run Python code</li>
+          <li><b>Column Profiling &amp; Statistics</b> — type, null count, unique count, mean, median, std dev, min, max, mode</li>
+          <li><b>Missing Value Handling</b> — drop rows or fill with mean, median, mode, or a custom value</li>
+          <li><b>Duplicate Removal</b> — detect and remove duplicate rows in one click</li>
+          <li><b>Outlier Detection (IQR)</b> — identify and remove outliers using the IQR fence method</li>
+          <li><b>Data Normalization</b> — Min-Max scaling [0, 1] or Z-Score standardisation (mean=0, std=1)</li>
+          <li><b>Column Type Casting</b> — cast any column to int, float, boolean, or string</li>
+          <li><b>Pandas Code Generation</b> — one click produces a complete, ready-to-run pandas script</li>
+          <li><b>Export cleaned CSV</b> — save the transformed dataset to disk alongside the source file</li>
         </ul>
 
-        <b>Why use Data Preprocessor?</b>
-        <ul>
-          <li>Save time on repetitive preprocessing tasks</li>
-          <li>Work without leaving your IDE</li>
-          <li>Visually prepare data, then export clean pandas code for production or notebooks</li>
-        </ul>
+        <p>Built for <b>data scientists, analysts, and developers</b> who want faster preprocessing
+        without leaving their IDE.</p>
 
-        Compatible with <b>IntelliJ IDEA</b>, <b>PyCharm</b>, <b>DataGrip</b>, and other JetBrains IDEs.
+        <p>Compatible with <b>IntelliJ IDEA</b>, <b>PyCharm</b>, <b>DataGrip</b>, and other JetBrains IDEs.</p>
+
+        <br/>
+        <b>Privacy:</b> This plugin does not collect, store, or transmit any user data.
+        All processing is performed locally within the IDE.
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>

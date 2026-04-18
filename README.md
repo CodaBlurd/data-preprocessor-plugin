@@ -169,6 +169,14 @@ To add a new cleaning operation:
 
 ---
 
+## Privacy Policy
+
+Data Preprocessor does not collect, store, or transmit any user data. All data processing is performed entirely locally within your IDE. No CSV content, file paths, column names, or usage metrics are ever sent anywhere.
+
+Full privacy policy: [https://plugins.jetbrains.com/plugin/31226-data-preprocessor](https://plugins.jetbrains.com/plugin/31226-data-preprocessor)
+
+---
+
 ## License
 
 [MIT](LICENSE)
