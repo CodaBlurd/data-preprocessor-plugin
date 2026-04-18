@@ -19,6 +19,7 @@ public class DataPreprocessorToolWindowFactory implements ToolWindowFactory {
 
     public static final String TOOL_WINDOW_ID = "Data Preprocessor";
 
+
     /** Holds the panel per project so actions can retrieve it. */
     private static final Map<Project, DataPreprocessorToolWindow> PANELS
             = new ConcurrentHashMap<>();

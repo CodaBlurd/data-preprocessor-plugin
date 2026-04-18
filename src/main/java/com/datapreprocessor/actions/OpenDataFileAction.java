@@ -28,8 +28,9 @@ public class OpenDataFileAction extends AnAction {
 
     @Override
     public @NotNull ActionUpdateThread getActionUpdateThread() {
-        // We read from the VirtualFile selection — must run on EDT
-        return ActionUpdateThread.EDT;
+        // VirtualFile is a slow data key — must be resolved on BGT, not EDT.
+        // The platform pre-caches it before calling update(), so BGT is safe.
+        return ActionUpdateThread.BGT;
     }
 
     @Override
