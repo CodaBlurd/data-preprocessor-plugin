@@ -70,11 +70,18 @@ public class DataPreprocessorToolWindow {
 
     // ── UI components ────────────────────────────────────────────────────────
 
-    private final JLabel   pathLabel  = new JLabel("No file loaded");
-    private final JBTable  previewTable  = new JBTable();
-    private final JBTable  profileTable  = new JBTable();
-    private final JTextArea codeArea   = new JTextArea();
-    private final JLabel   statusLabel = new JLabel(" ");
+    private final JLabel    pathLabel    = new JLabel("No file loaded");
+    private final JBTable   previewTable = new JBTable();
+    private final JBTable   profileTable = new JBTable();
+    private final JTextArea codeArea     = new JTextArea();
+    private final JLabel    statusLabel  = new JLabel(" ");
+
+    // Kept as fields so they can be enabled/disabled based on state
+    private JButton reloadBtn;
+    private JButton applyBtn;
+
+    // The tab pane — kept as a field so loadDataSet can switch to Preview tab
+    private JBTabbedPane tabs;
 
     // Operation controls
     private final ComboBox<String> colSelector  = new ComboBox<>();
@@ -108,17 +115,76 @@ public class DataPreprocessorToolWindow {
     // Public API
     // =========================================================================
 
-    /** Called by {@code OpenDataFileAction} after the file has been loaded. */
+    /**
+     * Called when a new CSV file is opened (Browse button or right-click action).
+     * Resets the full UI state including the pipeline.
+     */
     public void loadDataSet(DataSet ds) {
         this.currentDataSet = ds;
         this.columnProfiles = new DataCleaner().profileColumns(ds);
         pendingSteps.clear();
         stepListModel.clear();
+        cleanedDataSet = null;
+
+        // Update path label regardless of how the file was opened
+        pathLabel.setText(ds.getFilePath());
+
         refreshPreview();
         refreshProfileTable();
         refreshColumnSelector();
+        updateApplyButtonState();
+
+        // Enable Reload now that we have a file to reload from
+        if (reloadBtn != null) reloadBtn.setEnabled(true);
+
+        // Jump to Preview tab so the user sees the data immediately
+        if (tabs != null) tabs.setSelectedIndex(0);
+
         setStatus("Loaded: " + ds.getFilePath()
                 + " (" + ds.getRowCount() + " rows × " + ds.getColumnCount() + " cols)");
+        ReviewPromptService.recordUseAndMaybePrompt(project);
+    }
+
+    /**
+     * Called by the Reload button. Re-reads the CSV from disk but preserves
+     * the existing pipeline steps so users don't lose their work.
+     */
+    private void refreshFromDisk() {
+        if (currentDataSet == null || currentDataSet.getFilePath() == null) return;
+        String path = currentDataSet.getFilePath();
+        setStatus("Reloading…");
+        reloadBtn.setEnabled(false);
+
+        SwingWorker<DataSet, Void> worker = new SwingWorker<>() {
+            @Override
+            protected DataSet doInBackground() throws IOException {
+                return new DataLoader().loadCsv(path);
+            }
+            @Override
+            protected void done() {
+                try {
+                    DataSet fresh = get();
+                    // Update data + profiles but keep pipeline intact
+                    currentDataSet = fresh;
+                    columnProfiles = new DataCleaner().profileColumns(fresh);
+                    cleanedDataSet = null;
+                    pathLabel.setText(fresh.getFilePath());
+                    refreshPreview();
+                    refreshProfileTable();
+                    refreshColumnSelector();
+                    reloadBtn.setEnabled(true);
+                    setStatus("Reloaded: " + fresh.getRowCount()
+                            + " rows × " + fresh.getColumnCount() + " cols"
+                            + (pendingSteps.isEmpty() ? "" : " · pipeline preserved"));
+                } catch (Exception ex) {
+                    reloadBtn.setEnabled(true);
+                    Messages.showErrorDialog(project,
+                            "Reload failed:\n" + ex.getMessage(),
+                            "Data Preprocessor");
+                }
+            }
+        };
+        worker.execute();
     }
 
     public DataSet getCurrentDataSet() { return currentDataSet; }
@@ -138,7 +204,7 @@ public class DataPreprocessorToolWindow {
     private void buildUi() {
         root.add(buildHeaderBar(), BorderLayout.NORTH);
 
-        JBTabbedPane tabs = new JBTabbedPane();
+        tabs = new JBTabbedPane();
         tabs.addTab("📊 Preview",           buildPreviewTab());
         tabs.addTab("📋 Column Profiles",   buildProfileTab());
         tabs.addTab("🧹 Clean & Transform", buildCleanTab());
@@ -161,11 +227,13 @@ public class DataPreprocessorToolWindow {
 
         pathLabel.setFont(pathLabel.getFont().deriveFont(Font.ITALIC, 11f));
 
-        JButton loadBtn = new JButton("Reload");
-        loadBtn.addActionListener(e -> reloadCurrentFile());
+        reloadBtn = new JButton("Reload");
+        reloadBtn.setEnabled(false);   // enabled once a file is loaded
+        reloadBtn.setToolTipText("Re-read the CSV from disk (preserves your pipeline steps)");
+        reloadBtn.addActionListener(e -> reloadCurrentFile());
 
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
-        right.add(loadBtn);
+        right.add(reloadBtn);
 
         bar.add(browseBtn, BorderLayout.WEST);
         bar.add(pathLabel,  BorderLayout.CENTER);
@@ -292,9 +360,17 @@ public class DataPreprocessorToolWindow {
         JButton clearBtn  = new JButton("Clear all");
         removeBtn.addActionListener(e -> {
             int sel = stepList.getSelectedIndex();
-            if (sel >= 0) { stepListModel.remove(sel); pendingSteps.remove(sel); }
+            if (sel >= 0) {
+                stepListModel.remove(sel);
+                pendingSteps.remove(sel);
+                updateApplyButtonState();
+            }
         });
-        clearBtn.addActionListener(e -> { stepListModel.clear(); pendingSteps.clear(); });
+        clearBtn.addActionListener(e -> {
+            stepListModel.clear();
+            pendingSteps.clear();
+            updateApplyButtonState();
+        });
         listMgmt.add(removeBtn);
         listMgmt.add(clearBtn);
         listPanel.add(listMgmt, BorderLayout.SOUTH);
@@ -305,13 +381,14 @@ public class DataPreprocessorToolWindow {
         JPanel actionBar = new JPanel(new GridLayout(2, 1, 0, 4));
         actionBar.setBorder(BorderFactory.createEmptyBorder(6, 0, 0, 0));
 
-        JButton applyBtn     = new JButton("▶   Apply steps & generate Python code");
+        applyBtn = new JButton("▶   Apply steps & generate Python code");
         JButton exportCsvBtn = new JButton("📤  Export cleaned CSV to disk");
 
         applyBtn.setBackground(new Color(60, 130, 70));
         applyBtn.setForeground(Color.WHITE);
         applyBtn.setOpaque(true);
         applyBtn.setFont(applyBtn.getFont().deriveFont(Font.BOLD));
+        applyBtn.setEnabled(false);   // enabled once at least one step is added
 
         applyBtn.addActionListener(e -> applyAndGenerate());
         exportCsvBtn.addActionListener(e -> exportCleanedCsv());
@@ -384,25 +461,11 @@ public class DataPreprocessorToolWindow {
 
     private void reloadCurrentFile() {
         if (currentDataSet == null || currentDataSet.getFilePath() == null) {
+            // No file loaded yet — open the file chooser instead
             browseAndLoad();
             return;
         }
-        SwingWorker<DataSet, Void> worker = new SwingWorker<>() {
-            @Override
-            protected DataSet doInBackground() throws IOException {
-                return new DataLoader().loadCsv(currentDataSet.getFilePath());
-            }
-            @Override
-            protected void done() {
-                try { loadDataSet(get()); }
-                catch (Exception ex) {
-                    Messages.showErrorDialog(project,
-                            "Reload failed:\n" + ex.getMessage(),
-                            "Data Preprocessor");
-                }
-            }
-        };
-        worker.execute();
+        refreshFromDisk();
     }
 
     private void addStep() {
@@ -433,6 +496,7 @@ public class DataPreprocessorToolWindow {
 
         pendingSteps.add(step);
         stepListModel.addElement(describeStep(step));
+        updateApplyButtonState();
         setStatus("Step added. Total: " + pendingSteps.size());
     }
 
@@ -630,5 +694,12 @@ public class DataPreprocessorToolWindow {
 
     private void setStatus(String msg) {
         SwingUtilities.invokeLater(() -> statusLabel.setText(" " + msg));
+    }
+
+    /** Enables the Apply button only when there is at least one pending step. */
+    private void updateApplyButtonState() {
+        if (applyBtn != null) {
+            applyBtn.setEnabled(!pendingSteps.isEmpty());
+        }
     }
 }
