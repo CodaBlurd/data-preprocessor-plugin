@@ -7,6 +7,28 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.2] — 2026-04-21
+
+### Fixed
+- Reload button now re-reads the CSV from disk without clearing the pipeline —
+  previously called `loadDataSet()` which wiped all pending steps on every reload.
+- Path label now updates correctly when files are opened via right-click context menu
+  (was only updated through the Browse button).
+- Reload button is disabled until a file has been loaded, preventing broken state on
+  first open.
+
+### Changed
+- Apply button is now disabled when the pipeline is empty and enables automatically
+  when the first step is added, removing the silent "No steps to apply" dead end.
+- Preview tab is automatically selected when any file loads so users see their data
+  immediately rather than being left on whichever tab was last active.
+
+### Added
+- Review prompt: a one-time balloon notification appears after 3 CSV loads asking
+  users to leave a review on JetBrains Marketplace. Never repeats after dismissal.
+
+---
+
 ## [1.0.1] — 2026-04-18
 
 ### Fixed
