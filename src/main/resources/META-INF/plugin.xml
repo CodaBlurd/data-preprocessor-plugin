@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>com.datapreprocessor.plugin</id>
     <name>Data Preprocessor</name>
-    <version>1.0.2</version>
+    <version>1.0.3</version>
     <vendor email="admin@keencodelabs.com" url="https://github.com/codaBlurd/data-preprocessor-plugin">
         Keen Code Labs
     </vendor>

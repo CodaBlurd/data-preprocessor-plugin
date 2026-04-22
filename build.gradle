@@ -33,11 +33,17 @@ patchPluginXml {
     untilBuild = pluginUntilBuild
     changeNotes = """
         <ul>
+          <li><b>1.0.3</b> — Critical fix: tool window now appears in the IDE sidebar after
+              installation (missing icon file prevented tool window registration). Fixed Reload
+              button: re-reads CSV from disk without clearing the pipeline. Path label updates
+              correctly on right-click file open. Reload and Apply buttons disabled until
+              meaningful interaction is possible. Preview tab auto-selected on file load.
+              One-time review prompt after 3 uses.</li>
           <li><b>1.0.2</b> — Fixed Reload button: now re-reads CSV from disk without clearing
-              the pipeline (previously wiped all pending steps on every reload). Path label now
-              updates correctly when files are opened via right-click. Reload button disabled until
-              a file is loaded. Apply button disabled when the pipeline is empty. Preview tab
-              auto-selected when a file loads. Added a one-time review prompt after 3 uses.</li>
+              the pipeline. Path label updates correctly when files are opened via right-click.
+              Reload button disabled until a file is loaded. Apply button disabled when the
+              pipeline is empty. Preview tab auto-selected on file load. One-time review prompt
+              after 3 uses.</li>
           <li><b>1.0.1</b> — Bug fix: resolved threading warning (ActionUpdateThread.BGT) in the
               right-click context menu action. Animated walkthrough shown in Preview tab when no
               file is loaded. Expanded IDE compatibility to build 253 (2025.3).</li>

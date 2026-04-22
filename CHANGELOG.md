@@ -7,9 +7,12 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-## [1.0.2] — 2026-04-21
+## [1.0.3] — 2026-04-21
 
 ### Fixed
+- **Tool window not appearing in sidebar after installation** — icon file
+  `dataPreprocessor.svg` was missing from the build, causing IntelliJ to silently
+  skip tool window registration. Added light and dark theme variants of the icon.
 - Reload button now re-reads the CSV from disk without clearing the pipeline —
   previously called `loadDataSet()` which wiped all pending steps on every reload.
 - Path label now updates correctly when files are opened via right-click context menu
@@ -26,6 +29,22 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 - Review prompt: a one-time balloon notification appears after 3 CSV loads asking
   users to leave a review on JetBrains Marketplace. Never repeats after dismissal.
+
+---
+
+## [1.0.2] — 2026-04-20
+
+### Fixed
+- Reload button now re-reads the CSV from disk without clearing the pipeline.
+- Path label updates correctly when files are opened via right-click context menu.
+- Reload button disabled until a file has been loaded.
+
+### Changed
+- Apply button disabled when the pipeline is empty.
+- Preview tab auto-selected when a file loads.
+
+### Added
+- One-time review prompt balloon after 3 CSV loads.
 
 ---
 
