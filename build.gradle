@@ -12,7 +12,7 @@ repositories {
 
 dependencies {
     // CSV parsing
-    implementation 'org.apache.commons:commons-csv:1.10.0'
+    implementation 'org.apache.commons:commons-csv:1.14.1'
     // Math for stats (mean, stddev, IQR, etc.)
     implementation 'org.apache.commons:commons-math3:3.6.1'
     // Utilities
