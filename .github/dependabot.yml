@@ -1,0 +1,30 @@
+version: 2
+
+updates:
+  # ── Maven / Gradle dependencies ────────────────────────────────────────────
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "weekly"         # Dependabot opens a PR if a newer version exists
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/London"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "deps"
+    ignore:
+      # Pin the IntelliJ Platform version manually — auto-bumping it without
+      # running ./gradlew runIde first can introduce breaking API changes.
+      - dependency-name: "org.jetbrains.intellij"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+
+  # ── GitHub Actions ─────────────────────────────────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    labels:
+      - "dependencies"
+      - "ci"
