@@ -38,10 +38,17 @@ jobs:
           name: plugin-zip
           path: build/distributions/*.zip
 
-  # ── Compatibility check against the latest EAP build ──────────────────────
+  # ── Forward compatibility check against a newer stable platform ────────────
   # Runs on every push AND on the weekly schedule.
-  # marked continue-on-error so it never blocks a PR merge on pre-release breakage.
-  eap-compat:
+  # Tests against a platform version ahead of the pinned dev version so you
+  # get advance warning of API deprecations before users on newer IDEs hit them.
+  #
+  # Why not LATEST-EAP-SNAPSHOT: that token does not configure the compile
+  # classpath correctly with org.jetbrains.intellij 1.x — all platform classes
+  # appear missing and you get 90+ "cannot find symbol" errors unrelated to real
+  # API changes. Use a concrete stable version string instead.
+  # Update this version when JetBrains ships a new major release.
+  forward-compat:
     runs-on: ubuntu-latest
     continue-on-error: true
 
@@ -57,13 +64,10 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build against latest EAP
-        # LATEST-EAP-SNAPSHOT is the token the IntelliJ Gradle plugin resolves
-        # against JetBrains' EAP artifact channel — not a literal version string.
-        # Do not use marketing names like "2025.1-EAP"; those don't exist in the repo.
-        run: ./gradlew buildPlugin --no-daemon -PplatformVersion=LATEST-EAP-SNAPSHOT
+      - name: Build against newer stable platform
+        run: ./gradlew buildPlugin --no-daemon -PplatformVersion=2024.3
 
-      - name: Warn on EAP failure
+      - name: Warn on forward-compat failure
         if: failure()
         run: |
-          echo "::warning::EAP compatibility check failed. Review the JetBrains Platform changelog at https://blog.jetbrains.com/platform and address deprecated API usages before the EAP ships."
+          echo "::warning::Forward compatibility check failed against platformVersion=2024.3. Review https://blog.jetbrains.com/platform for deprecated API changes and update before releasing."
