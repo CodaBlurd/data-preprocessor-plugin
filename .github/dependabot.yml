@@ -20,6 +20,12 @@ updates:
       - dependency-name: "org.jetbrains.intellij"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
+      # Gradle wrapper must stay on 8.x — org.jetbrains.intellij 1.x is
+      # incompatible with Gradle 9+ (removed DefaultArtifactPublicationSet).
+      # Upgrading requires migrating to org.jetbrains.intellij.platform 2.x.
+      - dependency-name: "gradle"
+        update-types: ["version-update:semver-major"]
+
   # ── GitHub Actions ─────────────────────────────────────────────────────────
   - package-ecosystem: "github-actions"
     directory: "/"
