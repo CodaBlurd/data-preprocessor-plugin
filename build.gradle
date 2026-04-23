@@ -30,7 +30,11 @@ intellij {
 
 patchPluginXml {
     sinceBuild = pluginSinceBuild
-    untilBuild = pluginUntilBuild
+    // untilBuild intentionally omitted — no upper limit means the plugin
+    // will be offered to users on all future IDE versions without needing
+    // a code change. This prevents the "no update button" problem where
+    // an old pluginUntilBuild value makes installed versions appear
+    // incompatible with newer IDEs.
     changeNotes = """
         <ul>
           <li><b>1.0.3</b> — Critical fix: tool window now appears in the IDE sidebar after
