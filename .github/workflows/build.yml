@@ -58,10 +58,10 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build against latest EAP
-        # Override platformVersion with the current EAP series.
-        # Update this value when a new EAP cycle starts.
-        # Track releases at: https://blog.jetbrains.com/platform
-        run: ./gradlew buildPlugin --no-daemon -PplatformVersion=2025.1-EAP
+        # LATEST-EAP-SNAPSHOT is the token the IntelliJ Gradle plugin resolves
+        # against JetBrains' EAP artifact channel — not a literal version string.
+        # Do not use marketing names like "2025.1-EAP"; those don't exist in the repo.
+        run: ./gradlew buildPlugin --no-daemon -PplatformVersion=LATEST-EAP-SNAPSHOT
 
       - name: Warn on EAP failure
         if: failure()
