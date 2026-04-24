@@ -48,13 +48,21 @@ public class CodeGenerator {
     /**
      * Generates a complete Python script for the given file path and steps.
      *
-     * @param csvFilePath absolute or relative path that will be embedded in the script
+     * @param filePath absolute or relative path that will be embedded in the script
      * @param steps       ordered list of preprocessing operations
      * @return multi-line Python source code as a String
      */
-    public String generate(String csvFilePath, List<PreprocessingStep> steps) {
+    public String generate(String filePath, List<PreprocessingStep> steps) {
+        String safePath = filePath.replace("\\", "/");
+        String readCall;
+        if (safePath.toLowerCase().endsWith(".xlsx")) {
+            readCall = "pd.read_excel(r'" + safePath + "')";
+        } else if (safePath.toLowerCase().endsWith(".json")) {
+            readCall = "pd.read_json(r'" + safePath + "')";
+        } else {
+            readCall = "pd.read_csv(r'" + safePath + "')";
+        }
         // Normalise path separators for Python
-        String safePath = csvFilePath.replace("\\", "/");
         String outputPath = deriveOutputPath(safePath);
 
         StringBuilder sb = new StringBuilder();
@@ -69,7 +77,7 @@ public class CodeGenerator {
 
         // ----- Load data -----------------------------------------------------
         sb.append("# Load dataset\n");
-        sb.append(String.format("df = pd.read_csv(\"%s\")\n\n", safePath));
+        sb.append(String.format("df = %s\n\n", readCall));
 
         sb.append("print(f\"Loaded {len(df)} rows × {len(df.columns)} columns\")\n\n");
 
@@ -84,6 +92,7 @@ public class CodeGenerator {
         }
 
         // ----- Save output ---------------------------------------------------
+        // Always write cleaned output as CSV — most portable format regardless of input type
         sb.append("\n# Save cleaned dataset\n");
         sb.append(String.format("df.to_csv(\"%s\", index=False)\n", outputPath));
         sb.append(String.format("print(f\"Saved {len(df)} rows to '%s'\")\n", outputPath));
@@ -180,9 +189,10 @@ public class CodeGenerator {
 
     private String deriveOutputPath(String original) {
         int dot = original.lastIndexOf('.');
+        // Always output as CSV — most portable format for cleaned data
         return dot > 0
-                ? original.substring(0, dot) + "_cleaned" + original.substring(dot)
-                : original + "_cleaned";
+                ? original.substring(0, dot) + "_cleaned.csv"
+                : original + "_cleaned.csv";
     }
 
     private boolean isNumericString(String s) {

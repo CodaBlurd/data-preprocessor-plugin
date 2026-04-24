@@ -64,11 +64,14 @@ public class DataExporter {
     // -------------------------------------------------------------------------
 
     /**
-     * Derives a cleaned CSV output path from the original CSV path.
-     * e.g. {@code /data/employees.csv} → {@code /data/employees_cleaned.csv}
+     * Derives a cleaned CSV output path from the original file path.
+     * Always produces a .csv file regardless of the input format.
+     * e.g. {@code /data/employees.xlsx} → {@code /data/employees_cleaned.csv}
      */
     public static String cleanedCsvPath(String originalPath) {
-        return insertSuffix(originalPath, "_cleaned");
+        int dot = originalPath.lastIndexOf('.');
+        String stem = dot > 0 ? originalPath.substring(0, dot) : originalPath;
+        return stem + "_cleaned.csv";
     }
 
     /**

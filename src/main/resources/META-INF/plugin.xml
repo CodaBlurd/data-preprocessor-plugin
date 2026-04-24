@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>com.datapreprocessor.plugin</id>
     <name>Data Preprocessor</name>
-    <version>1.0.3</version>
+    <version>1.1.0</version>
     <vendor email="admin@keencodelabs.com" url="https://github.com/codaBlurd/data-preprocessor-plugin">
         Keen Code Labs
     </vendor>
@@ -9,12 +9,12 @@
     <description><![CDATA[
         <p>Stop writing repetitive pandas preprocessing scripts.</p>
 
-        <p><b>Data Preprocessor</b> is an in-IDE toolkit for cleaning, transforming, and preparing CSV datasets
+        <p><b>Data Preprocessor</b> is an in-IDE toolkit for cleaning, transforming, and preparing datasets
         directly inside your JetBrains IDE.</p>
 
-        <p>Load a CSV file, profile your data instantly, handle missing values, remove duplicates and outliers,
-        normalize columns, and generate ready-to-run <b>Python (pandas)</b> code from your workflow —
-        all without leaving the IDE.</p>
+        <p>Load a <b>CSV, Excel (.xlsx), or JSON</b> file, profile your data instantly, handle missing values,
+        remove duplicates and outliers, normalize columns, and generate ready-to-run <b>Python (pandas)</b>
+        code from your workflow — all without leaving the IDE.</p>
 
         <b>Key features:</b>
         <ul>
@@ -62,7 +62,7 @@
             <action id="DataPreprocessor.OpenFile"
                     class="com.datapreprocessor.actions.OpenDataFileAction"
                     text="Open in Data Preprocessor"
-                    description="Load this CSV file into the Data Preprocessor tool window"/>
+                    description="Load this data file into the Data Preprocessor tool window"/>
 
             <action id="DataPreprocessor.GenerateCode"
                     class="com.datapreprocessor.actions.GeneratePreprocessingCodeAction"
@@ -75,7 +75,7 @@
             <action id="DataPreprocessor.OpenTool"
                     class="com.datapreprocessor.actions.OpenDataFileAction"
                     text="Open Data Preprocessor…"
-                    description="Open a CSV file in the Data Preprocessor"/>
+                    description="Open a data file in the Data Preprocessor"/>
         </group>
     </actions>
 </idea-plugin>

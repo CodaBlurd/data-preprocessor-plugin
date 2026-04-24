@@ -52,7 +52,7 @@ public class GeneratePreprocessingCodeAction extends AnAction {
         if (panel == null || panel.getCurrentDataSet() == null) {
             Messages.showInfoMessage(
                     project,
-                    "Please load a CSV file in the Data Preprocessor tool window first.",
+                    "Please load a data file (CSV, Excel, or JSON) in the Data Preprocessor tool window first.",
                     "Data Preprocessor");
             return;
         }

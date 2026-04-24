@@ -7,6 +7,41 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.1.0] — 2026-04-24
+
+### Added
+- **Excel support** — load `.xlsx` files directly into the tool window via Browse or
+  right-click → *Open in Data Preprocessor*. All cleaning and profiling operations
+  apply identically to Excel data.
+- **JSON support** — load `.json` files (array-of-objects format). Headers are derived
+  from the union of all keys across every object, so sparse JSON is handled correctly.
+- **Format-aware code generation** — the generated pandas script now uses
+  `pd.read_excel()` or `pd.read_json()` automatically when the source file is not CSV.
+  Cleaned output is always written as CSV for maximum portability.
+- **Format badge** — a small `CSV` / `XLSX` / `JSON` label in the header bar shows the
+  active file type at a glance.
+- **Sample data** — three test files (`employees.csv`, `employees.xlsx`, `employees.json`)
+  added to `sample-data/` for manual testing during development.
+
+### Fixed
+- Reload was displaying binary data for Excel and JSON files — `refreshFromDisk()` was
+  hardcoded to `loadCsv()` instead of the format-aware `load()` dispatcher.
+- `saveAsPythonFile()` and `exportCleanedCsv()` were performing file I/O on the EDT,
+  triggering `SlowOperations` SEVERE errors. Both now run file writes in a `SwingWorker`.
+- `FileEditorManager.openFile()` called outside a write-safe context after background save;
+  wrapped in `ApplicationManager.invokeLater()`.
+- Stale error message in Generate Code action still referenced "CSV file" — updated to
+  "data file (CSV, Excel, or JSON)".
+
+### Changed
+- Preview table columns auto-size on load (50-row sample, 250 px max per column).
+- Code area now uses IDE-theme-aware colours (`Editor.background` / `Editor.foreground`)
+  so it renders correctly in both light and dark themes.
+- Path label shows filename only; full path available on hover as a tooltip.
+- Status bar gets a subtle top border to visually separate it from the content area.
+
+---
+
 ## [1.0.3] — 2026-04-21
 
 ### Fixed

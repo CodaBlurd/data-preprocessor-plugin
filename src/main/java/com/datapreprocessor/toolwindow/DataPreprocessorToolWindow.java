@@ -8,8 +8,9 @@ import com.datapreprocessor.engine.DataExporter;
 import com.datapreprocessor.engine.DataLoader;
 import com.datapreprocessor.model.ColumnProfile;
 import com.datapreprocessor.model.DataSet;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.fileChooser.FileChooser;
-import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory;
+import com.intellij.openapi.fileChooser.FileChooserDescriptor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.ComboBox;
@@ -36,7 +37,7 @@ import java.util.List;
  * <h3>Layout (top → bottom)</h3>
  * <pre>
  * ┌──────────────────────────────────────────────┐
- * │  [Browse CSV…]  path label         [Load]    │  ← header bar
+ * │  [Browse…]  path label              [Reload]  │  ← header bar
  * ├──────────────────────────────────────────────┤
  * │  Tab 1: Data Preview (first 200 rows)        │
  * │  Tab 2: Column Profiles                      │
@@ -71,6 +72,7 @@ public class DataPreprocessorToolWindow {
     // ── UI components ────────────────────────────────────────────────────────
 
     private final JLabel    pathLabel    = new JLabel("No file loaded");
+    private final JLabel    formatBadge  = new JLabel();   // shows CSV / XLSX / JSON
     private final JBTable   previewTable = new JBTable();
     private final JBTable   profileTable = new JBTable();
     private final JTextArea codeArea     = new JTextArea();
@@ -116,7 +118,7 @@ public class DataPreprocessorToolWindow {
     // =========================================================================
 
     /**
-     * Called when a new CSV file is opened (Browse button or right-click action).
+     * Called when a new file is opened (Browse button or right-click action).
      * Resets the full UI state including the pipeline.
      */
     public void loadDataSet(DataSet ds) {
@@ -126,8 +128,19 @@ public class DataPreprocessorToolWindow {
         stepListModel.clear();
         cleanedDataSet = null;
 
-        // Update path label regardless of how the file was opened
-        pathLabel.setText(ds.getFilePath());
+        // Show filename only in the label; full path in tooltip
+        String fullPath = ds.getFilePath();
+        String fileName = new java.io.File(fullPath).getName();
+        pathLabel.setText(fileName);
+        pathLabel.setToolTipText(fullPath);
+        pathLabel.setForeground(JBColor.foreground());
+
+        // Update format badge
+        String ext = fileName.contains(".")
+                ? fileName.substring(fileName.lastIndexOf('.') + 1).toUpperCase()
+                : "";
+        formatBadge.setText(ext);
+        formatBadge.setVisible(!ext.isEmpty());
 
         refreshPreview();
         refreshProfileTable();
@@ -146,8 +159,9 @@ public class DataPreprocessorToolWindow {
     }
 
     /**
-     * Called by the Reload button. Re-reads the CSV from disk but preserves
+     * Called by the Reload button. Re-reads the file from disk but preserves
      * the existing pipeline steps so users don't lose their work.
+     * Dispatches to the correct loader (CSV / XLSX / JSON) via DataLoader.load().
      */
     private void refreshFromDisk() {
         if (currentDataSet == null || currentDataSet.getFilePath() == null) return;
@@ -158,7 +172,7 @@ public class DataPreprocessorToolWindow {
         SwingWorker<DataSet, Void> worker = new SwingWorker<>() {
             @Override
             protected DataSet doInBackground() throws IOException {
-                return new DataLoader().loadCsv(path);
+                return new DataLoader().load(path);  // format-aware dispatch
             }
             @Override
             protected void done() {
@@ -168,7 +182,9 @@ public class DataPreprocessorToolWindow {
                     currentDataSet = fresh;
                     columnProfiles = new DataCleaner().profileColumns(fresh);
                     cleanedDataSet = null;
-                    pathLabel.setText(fresh.getFilePath());
+                    String reloadedName = new java.io.File(fresh.getFilePath()).getName();
+                    pathLabel.setText(reloadedName);
+                    pathLabel.setToolTipText(fresh.getFilePath());
                     refreshPreview();
                     refreshProfileTable();
                     refreshColumnSelector();
@@ -212,7 +228,10 @@ public class DataPreprocessorToolWindow {
         root.add(tabs, BorderLayout.CENTER);
 
         statusLabel.setForeground(JBColor.GRAY);
-        statusLabel.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6));
+        // Subtle top border separates status bar from tab content
+        statusLabel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(1, 0, 0, 0, JBColor.border()),
+                BorderFactory.createEmptyBorder(2, 6, 2, 6)));
         root.add(statusLabel, BorderLayout.SOUTH);
     }
 
@@ -222,21 +241,35 @@ public class DataPreprocessorToolWindow {
         JPanel bar = new JPanel(new BorderLayout(6, 0));
         bar.setBorder(BorderFactory.createEmptyBorder(6, 8, 6, 8));
 
-        JButton browseBtn = new JButton("Browse CSV…");
+        JButton browseBtn = new JButton("Browse…");
         browseBtn.addActionListener(e -> browseAndLoad());
 
+        // Show only the filename; full path available via tooltip
         pathLabel.setFont(pathLabel.getFont().deriveFont(Font.ITALIC, 11f));
+        pathLabel.setForeground(JBColor.GRAY);
+
+        // Format badge — updated when a file is loaded
+        formatBadge.setFont(formatBadge.getFont().deriveFont(Font.BOLD, 10f));
+        formatBadge.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(JBColor.border()),
+                BorderFactory.createEmptyBorder(1, 4, 1, 4)));
+        formatBadge.setVisible(false);
+
+        JPanel pathPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        pathPanel.setOpaque(false);
+        pathPanel.add(formatBadge);
+        pathPanel.add(pathLabel);
 
         reloadBtn = new JButton("Reload");
-        reloadBtn.setEnabled(false);   // enabled once a file is loaded
-        reloadBtn.setToolTipText("Re-read the CSV from disk (preserves your pipeline steps)");
+        reloadBtn.setEnabled(false);
+        reloadBtn.setToolTipText("Re-read the file from disk (preserves your pipeline steps)");
         reloadBtn.addActionListener(e -> reloadCurrentFile());
 
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
         right.add(reloadBtn);
 
-        bar.add(browseBtn, BorderLayout.WEST);
-        bar.add(pathLabel,  BorderLayout.CENTER);
+        bar.add(browseBtn,  BorderLayout.WEST);
+        bar.add(pathPanel,  BorderLayout.CENTER);
         bar.add(right,      BorderLayout.EAST);
         return bar;
     }
@@ -264,7 +297,7 @@ public class DataPreprocessorToolWindow {
             inner.add(gifLabel);
             inner.add(Box.createVerticalStrut(10));
 
-            JLabel hint = new JLabel("Browse a CSV file above, or right-click any .csv → Open in Data Preprocessor");
+            JLabel hint = new JLabel("Browse a file above, or right-click any .csv / .xlsx / .json → Open in Data Preprocessor");
             hint.setForeground(JBColor.GRAY);
             hint.setAlignmentX(Component.CENTER_ALIGNMENT);
             inner.add(hint);
@@ -272,7 +305,7 @@ public class DataPreprocessorToolWindow {
             emptyPane.add(inner);
         } else {
             // Fallback if resource is missing (e.g. dev mode without full build)
-            emptyPane.add(new JLabel("Load a CSV file to get started."));
+            emptyPane.add(new JLabel("Load a CSV, Excel, or JSON file to get started."));
         }
 
         previewCard.add(emptyPane,                   CARD_EMPTY);
@@ -405,6 +438,11 @@ public class DataPreprocessorToolWindow {
     private JComponent buildCodeTab() {
         codeArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
         codeArea.setEditable(false);
+        codeArea.setLineWrap(false);
+        codeArea.setBackground(JBColor.namedColor("Editor.background", new Color(43, 43, 43)));
+        codeArea.setForeground(JBColor.namedColor("Editor.foreground", JBColor.foreground()));
+        codeArea.setCaretColor(JBColor.foreground());
+        codeArea.setBorder(BorderFactory.createEmptyBorder(6, 8, 6, 8));
         codeArea.setText("# Apply steps in the 'Clean & Transform' tab to generate code.");
 
         JPanel panel = new JPanel(new BorderLayout(0, 4));
@@ -435,28 +473,40 @@ public class DataPreprocessorToolWindow {
     // =========================================================================
 
     private void browseAndLoad() {
-        VirtualFile file = FileChooser.chooseFile(
-                FileChooserDescriptorFactory.createSingleFileDescriptor("csv"),
-                project, null);
-        if (file == null) return;
+        FileChooserDescriptor descriptor = new FileChooserDescriptor(true, false, false, false, false, false)
+                .withFileFilter(file -> {
+                    String ext = file.getExtension();
+                    return "csv".equalsIgnoreCase(ext)
+                            || "xlsx".equalsIgnoreCase(ext)
+                            || "json".equalsIgnoreCase(ext);
+                })
+                .withTitle("Open Data File")
+                .withDescription("Select a CSV, Excel, or JSON file");
 
-        pathLabel.setText(file.getPath());
-        SwingWorker<DataSet, Void> worker = new SwingWorker<>() {
-            @Override
-            protected DataSet doInBackground() throws IOException {
-                return new DataLoader().loadCsv(file.getPath());
-            }
-            @Override
-            protected void done() {
-                try { loadDataSet(get()); }
-                catch (Exception ex) {
-                    Messages.showErrorDialog(project,
-                            "Could not load CSV:\n" + ex.getMessage(),
-                            "Data Preprocessor");
+        // chooseFiles (async) instead of chooseFile (sync) — the synchronous API
+        // blocks EDT while MacPathChooserDialog does a VFS refresh internally,
+        // which newer IntelliJ versions flag as a slow operation on EDT.
+        FileChooser.chooseFiles(descriptor, project, null, files -> {
+            if (files.isEmpty()) return;
+            VirtualFile file = files.get(0);
+            SwingWorker<DataSet, Void> worker = new SwingWorker<>() {
+                @Override
+                protected DataSet doInBackground() throws IOException {
+                    return new DataLoader().load(file.getPath());
                 }
-            }
-        };
-        worker.execute();
+                @Override
+                protected void done() {
+                    try {
+                        loadDataSet(get());
+                    } catch (Exception ex) {
+                        Messages.showErrorDialog(project,
+                                "Could not load file:\n" + ex.getMessage(),
+                                "Data Preprocessor");
+                    }
+                }
+            };
+            worker.execute();
+        });
     }
 
     private void reloadCurrentFile() {
@@ -546,7 +596,7 @@ public class DataPreprocessorToolWindow {
 
     /**
      * Writes the generated Python code to a {@code preprocess_<name>.py} file
-     * in the same directory as the source CSV, then opens it in the editor.
+     * in the same directory as the source file, then opens it in the editor.
      */
     private void saveAsPythonFile() {
         String code = codeArea.getText();
@@ -557,27 +607,39 @@ public class DataPreprocessorToolWindow {
         if (currentDataSet == null) return;
 
         String pyPath = DataExporter.pythonScriptPath(currentDataSet.getFilePath());
-        try {
-            new DataExporter().exportPythonScript(code, pyPath);
+        setStatus("Saving…");
 
-            // Refresh IntelliJ's virtual file system so the new file appears
-            // in the Project view immediately, then open it in the editor.
-            VirtualFile vf = LocalFileSystem.getInstance()
-                    .refreshAndFindFileByPath(pyPath);
-            if (vf != null) {
-                FileEditorManager.getInstance(project).openFile(vf, true);
+        // File write and VFS refresh are both slow operations — must run off EDT
+        SwingWorker<VirtualFile, Void> worker = new SwingWorker<>() {
+            @Override
+            protected VirtualFile doInBackground() throws IOException {
+                new DataExporter().exportPythonScript(code, pyPath);
+                return LocalFileSystem.getInstance().refreshAndFindFileByPath(pyPath);
             }
-            setStatus("Saved: " + pyPath);
-        } catch (IOException ex) {
-            Messages.showErrorDialog(project,
-                    "Could not save Python file:\n" + ex.getMessage(),
-                    "Data Preprocessor");
-        }
+            @Override
+            protected void done() {
+                try {
+                    VirtualFile vf = get();
+                    setStatus("Saved: " + pyPath);
+                    if (vf != null) {
+                        // invokeLater ensures we're in a write-safe modality context
+                        // before FileEditorManager attempts to open a new editor tab.
+                        ApplicationManager.getApplication().invokeLater(
+                                () -> FileEditorManager.getInstance(project).openFile(vf, true));
+                    }
+                } catch (Exception ex) {
+                    Messages.showErrorDialog(project,
+                            "Could not save Python file:\n" + ex.getMessage(),
+                            "Data Preprocessor");
+                }
+            }
+        };
+        worker.execute();
     }
 
     /**
      * Writes the cleaned dataset to a {@code <name>_cleaned.csv} file in the
-     * same directory as the source CSV, then refreshes the project view.
+     * same directory as the source file, then refreshes the project view.
      */
     private void exportCleanedCsv() {
         if (cleanedDataSet == null) {
@@ -586,22 +648,30 @@ public class DataPreprocessorToolWindow {
         }
 
         String csvPath = DataExporter.cleanedCsvPath(currentDataSet.getFilePath());
-        try {
-            new DataExporter().exportCsv(cleanedDataSet, csvPath);
+        final int rowCount = cleanedDataSet.getRowCount();
+        setStatus("Exporting…");
 
-            // Make the new file visible in the Project view immediately
-            VirtualFile vf = LocalFileSystem.getInstance()
-                    .refreshAndFindFileByPath(csvPath);
-            if (vf != null) {
-                vf.refresh(false, false);
+        // File write and VFS refresh are both slow operations — must run off EDT
+        SwingWorker<Void, Void> worker = new SwingWorker<>() {
+            @Override
+            protected Void doInBackground() throws IOException {
+                new DataExporter().exportCsv(cleanedDataSet, csvPath);
+                LocalFileSystem.getInstance().refreshAndFindFileByPath(csvPath);
+                return null;
             }
-            setStatus("Exported " + cleanedDataSet.getRowCount()
-                    + " rows → " + csvPath);
-        } catch (IOException ex) {
-            Messages.showErrorDialog(project,
-                    "Could not export CSV:\n" + ex.getMessage(),
-                    "Data Preprocessor");
-        }
+            @Override
+            protected void done() {
+                try {
+                    get();
+                    setStatus("Exported " + rowCount + " rows → " + csvPath);
+                } catch (Exception ex) {
+                    Messages.showErrorDialog(project,
+                            "Could not export cleaned file:\n" + ex.getMessage(),
+                            "Data Preprocessor");
+                }
+            }
+        };
+        worker.execute();
     }
 
     // =========================================================================
@@ -624,6 +694,25 @@ public class DataPreprocessorToolWindow {
         previewTable.setModel(new DefaultTableModel(data, cols) {
             @Override public boolean isCellEditable(int r, int c) { return false; }
         });
+
+        // Auto-size each column to fit its widest content (header or data)
+        for (int c = 0; c < previewTable.getColumnCount(); c++) {
+            int width = 60; // minimum
+            // measure header
+            var headerRenderer = previewTable.getTableHeader().getDefaultRenderer();
+            var headerComp = headerRenderer.getTableCellRendererComponent(
+                    previewTable, previewTable.getColumnName(c), false, false, -1, c);
+            width = Math.max(width, headerComp.getPreferredSize().width + 10);
+            // measure up to first 50 rows to keep it fast
+            int sampleRows = Math.min(50, previewTable.getRowCount());
+            for (int r = 0; r < sampleRows; r++) {
+                var cellRenderer = previewTable.getCellRenderer(r, c);
+                var cellComp = previewTable.prepareRenderer(cellRenderer, r, c);
+                width = Math.max(width, cellComp.getPreferredSize().width + 10);
+            }
+            previewTable.getColumnModel().getColumn(c).setPreferredWidth(Math.min(width, 250));
+        }
+
         // Switch the card so the data table is visible instead of the demo GIF
         if (previewCard != null) {
             ((CardLayout) previewCard.getLayout()).show(previewCard, CARD_TABLE);

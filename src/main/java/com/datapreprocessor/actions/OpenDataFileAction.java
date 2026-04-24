@@ -21,8 +21,8 @@ import java.io.IOException;
 /**
  * Action triggered from the Project View context menu or the Tools menu.
  *
- * <p>If the selected file is a CSV it is loaded into the Data Preprocessor
- * tool window. Otherwise an informational dialog is shown.</p>
+ * <p>If the selected file is a CSV, Excel (.xlsx), or JSON file it is loaded
+ * into the Data Preprocessor tool window. Otherwise the action is hidden.</p>
  */
 public class OpenDataFileAction extends AnAction {
 
@@ -35,12 +35,19 @@ public class OpenDataFileAction extends AnAction {
 
     @Override
     public void update(@NotNull AnActionEvent e) {
-        // Show the action only when exactly one CSV file is selected
         VirtualFile file = e.getData(CommonDataKeys.VIRTUAL_FILE);
-        boolean isCsv = file != null
-                && !file.isDirectory()
-                && "csv".equalsIgnoreCase(file.getExtension());
-        e.getPresentation().setEnabledAndVisible(isCsv);
+
+        if (file == null || file.isDirectory()) {
+            e.getPresentation().setEnabledAndVisible(false);
+            return;
+        }
+
+        String ext = file.getExtension();
+        boolean isSupported = "csv".equalsIgnoreCase(ext)
+                || "xlsx".equalsIgnoreCase(ext)
+                || "json".equalsIgnoreCase(ext);
+
+        e.getPresentation().setEnabledAndVisible(isSupported);
     }
 
     @Override
@@ -49,10 +56,13 @@ public class OpenDataFileAction extends AnAction {
         if (project == null) return;
 
         VirtualFile file = e.getData(CommonDataKeys.VIRTUAL_FILE);
-        if (file == null || !"csv".equalsIgnoreCase(file.getExtension())) {
+        if (file == null
+                || (!"csv".equalsIgnoreCase(file.getExtension())
+                && !"xlsx".equalsIgnoreCase(file.getExtension())
+                && !"json".equalsIgnoreCase(file.getExtension()))) {
             Messages.showInfoMessage(
                     project,
-                    "Please select a CSV file in the Project view.",
+                    "Please select a CSV, Excel (.xlsx), or JSON file.",
                     "Data Preprocessor");
             return;
         }
@@ -62,7 +72,7 @@ public class OpenDataFileAction extends AnAction {
 
             @Override
             protected DataSet doInBackground() throws IOException {
-                return new DataLoader().loadCsv(file.getPath());
+                return new DataLoader().load(file.getPath()); // dispatches by extension
             }
 
             @Override
@@ -73,7 +83,7 @@ public class OpenDataFileAction extends AnAction {
                 } catch (Exception ex) {
                     Messages.showErrorDialog(
                             project,
-                            "Failed to load CSV file:\n" + ex.getMessage(),
+                            "Failed to load file:\n" + ex.getMessage(),
                             "Data Preprocessor – Load Error");
                 }
             }
