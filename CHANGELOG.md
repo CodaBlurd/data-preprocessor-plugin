@@ -7,6 +7,62 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.2.0] — 2026-04-27
+
+### Added
+- **Label Encoding** — encode any categorical column to consecutive integer indices
+  (insertion-order stable; e.g. `["a","b","a"]` → `["0","1","0"]`).
+  Generated pandas code uses `pd.factorize()`.
+- **One-Hot Encoding** — expand a categorical column into one binary column per unique
+  value (`city` → `city_Austin`, `city_Chicago`, …). Dummy columns are inserted at the
+  original column's position, sorted alphabetically for stable output.
+  Generated pandas code uses `pd.get_dummies(df, columns=[...], dtype=int)`.
+- **Train / Test Split** — split the working dataset with a configurable train ratio
+  (default 0.8). A dedicated ratio field appears only when this operation is selected
+  and is validated before the step is added. Java preview is a no-op (dataset unchanged);
+  the generated Python script uses `sklearn.model_selection.train_test_split`.
+- **Sort Column** — sort the dataset by any column, ascending or descending.
+  Numeric columns sort numerically; text columns sort lexicographically.
+  Null / blank values are placed last in both directions.
+  Generated pandas code uses `df.sort_values(by=..., ascending=...).reset_index(drop=True)`.
+- **Filter Rows** — keep only rows where a column satisfies a condition.
+  Operators: `==`, `!=`, `>`, `<`, `>=`, `<=`, `contains` (case-insensitive substring).
+  Numeric comparisons require parseable numbers on both sides; rows that can't be compared
+  are kept rather than silently dropped. Null / blank cells are always kept
+  (combine with Drop Missing Rows to remove them).
+  Generated pandas code uses `df[df[col] op value]` or `str.contains()` for `contains`.
+  Both steps show a row-count delta via `print()` for debugging.
+
+### Changed
+- **Tool window refactored** into five focused panel classes
+  (`HeaderBarPanel`, `PreviewPanel`, `ProfilePanel`, `CleanPanel`, `CodePanel`).
+  `DataPreprocessorToolWindow` is now a thin coordinator (~260 lines) that wires the
+  panels via constructor-injected callbacks. No panel imports any sibling directly.
+
+### Fixed
+- `ONE_HOT_ENCODE` code generation produced invalid Python output: the Java text block
+  embedded string-concatenation syntax (`\n" +`) as literal characters. Replaced with
+  plain `String.format()` + `+` concatenation.
+- Label Encode and One-Hot Encode operations were unreachable from the UI: the operation
+  dropdown only had entries for indices 0–10; cases 11 and 12 in the switch were dead
+  code. Added the missing dropdown entries.
+- Train ratio validation ran unconditionally for every operation, rejecting valid column
+  names as "not a number." Scoped the validation block to `opIdx == 10`.
+- `describeStep()` switch expression was non-exhaustive after the new operations were
+  added, causing a compile error. Added the missing `LABEL_ENCODE` and `ONE_HOT_ENCODE`
+  cases.
+
+---
+
+## [1.1.1] — 2026-04-24
+
+### Fixed
+- `untilBuild` was being auto-filled to `233.*` by the Gradle plugin when the property
+  was omitted, capping compatibility at build 233 and blocking update notifications on
+  all newer IDEs. Explicitly set to empty string to remove the upper bound entirely.
+
+---
+
 ## [1.1.0] — 2026-04-24
 
 ### Added

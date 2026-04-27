@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>com.datapreprocessor.plugin</id>
     <name>Data Preprocessor</name>
-    <version>1.1.0</version>
+    <version>1.2.0</version>
     <vendor email="admin@keencodelabs.com" url="https://github.com/codaBlurd/data-preprocessor-plugin">
         Keen Code Labs
     </vendor>
@@ -24,6 +24,11 @@
           <li><b>Outlier Detection (IQR)</b> — identify and remove outliers using the IQR fence method</li>
           <li><b>Data Normalization</b> — Min-Max scaling [0, 1] or Z-Score standardisation (mean=0, std=1)</li>
           <li><b>Column Type Casting</b> — cast any column to int, float, boolean, or string</li>
+          <li><b>Label Encoding</b> — encode categorical columns to integer indices</li>
+          <li><b>One-Hot Encoding</b> — expand categorical columns into binary dummy columns</li>
+          <li><b>Train / Test Split</b> — split the dataset with a configurable ratio; generates sklearn code</li>
+          <li><b>Sort Column</b> — sort the dataset ascending or descending by any column (numeric or text)</li>
+          <li><b>Filter Rows</b> — keep only rows matching a condition (==, !=, &gt;, &lt;, &gt;=, &lt;=, contains)</li>
           <li><b>Pandas Code Generation</b> — one click produces a complete, ready-to-run pandas script</li>
           <li><b>Export cleaned CSV</b> — save the transformed dataset to disk alongside the source file</li>
         </ul>

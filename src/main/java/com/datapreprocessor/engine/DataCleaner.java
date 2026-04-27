@@ -251,6 +251,170 @@ public class DataCleaner {
         return ds;
     }
 
+    /**
+     * Label encodes the given column. e.g for a column of values ["a", "b", "a"] it will be encoded as ["0", "1", "0"] 0=a, 1=b, 2=a
+     * @param ds the dataset to transform
+     * @param colName the column to transform
+     * @return the transformed dataset
+     */
+    public DataSet labelEncode(DataSet ds, String colName) {
+        int col = ds.getColumnIndex(colName);
+        if (col < 0) return ds;
+
+        // Build stable value → index mapping (insertion order)
+        Map<String, String> mapping = new LinkedHashMap<>();
+        int nextIndex = 0;
+        for (int r = 0; r < ds.getRowCount(); r++) {
+            String v = ds.getValue(r, col);
+            if (v != null && !v.isBlank() && !mapping.containsKey(v)) {
+                mapping.put(v, String.valueOf(nextIndex++));
+            }
+        }
+        for (int r = 0; r < ds.getRowCount(); r++) {
+            String v = ds.getValue(r, col);
+            if (v != null && !v.isBlank()) ds.setValue(r, col, mapping.get(v));
+        }
+        return ds;
+    }
+
+    /**
+     * One-hot encodes {@code colName}, replacing it with one binary column per
+     * unique value (e.g. {@code city} → {@code city_Austin}, {@code city_Chicago}, …).
+     * Rows with a null / blank value in the original column produce all-zero dummy columns.
+     * Column order is stable: dummies are inserted at the position of the original column,
+     * sorted alphabetically by unique value.
+     *
+     * @param ds      the dataset to transform (mutated in place)
+     * @param colName the column to expand
+     * @return the same {@link DataSet} instance with the column expanded
+     */
+    public DataSet oneHotEncode(DataSet ds, String colName) {
+        int colIdx = ds.getColumnIndex(colName);
+        if (colIdx < 0) return ds;
+
+        // Collect all unique values for this column (sorted for stable output)
+        List<String> uniques = ds.getColumn(colIdx).stream()
+                .filter(v -> v != null && !v.isBlank())
+                .distinct().sorted().toList();
+
+        // Build new header list — replace colName with one column per unique value
+        List<String> newHeaders = new ArrayList<>(ds.getHeaders());
+        newHeaders.remove(colIdx);
+        List<String> dummyNames = uniques.stream()
+                .map(u -> colName + "_" + u).toList();
+        newHeaders.addAll(colIdx, dummyNames);
+        ds.setHeaders(newHeaders);
+
+        // Rebuild every row
+        for (int r = 0; r < ds.getRowCount(); r++) {
+            List<String> row = ds.getRows().get(r);
+            String val = row.remove(colIdx);  // removes original column value
+            List<String> dummies = uniques.stream()
+                    .map(u -> u.equals(val) ? "1" : "0").toList();
+            row.addAll(colIdx, dummies);
+        }
+        return ds;
+    }
+
+    // =========================================================================
+    // Sorting
+    // =========================================================================
+
+    /**
+     * Sorts the dataset rows by {@code colName}.
+     *
+     * <p>If every non-null value in the column parses as a number, a numeric
+     * comparator is used; otherwise rows are sorted lexicographically.
+     * Null / blank values are placed last regardless of direction.</p>
+     *
+     * @param ds        dataset to sort (mutated in place)
+     * @param colName   column to sort by
+     * @param ascending {@code true} for A→Z / 0→9; {@code false} for Z→A / 9→0
+     * @return the same {@link DataSet} instance
+     */
+    public DataSet sortColumn(DataSet ds, String colName, boolean ascending) {
+        int col = ds.getColumnIndex(colName);
+        if (col < 0) return ds;
+
+        boolean allNumeric = ds.getColumn(col).stream()
+                .filter(v -> v != null && !v.isBlank())
+                .allMatch(v -> tryParseDouble(v).isPresent());
+
+        Comparator<List<String>> cmp = allNumeric
+                ? Comparator.comparingDouble(row -> numericSortKey(row, col))
+                : Comparator.<List<String>, String>comparing(row -> stringSortKey(row, col));
+
+        ds.getRows().sort(ascending ? cmp : cmp.reversed());
+        return ds;
+    }
+
+    private double numericSortKey(List<String> row, int col) {
+        String v = col < row.size() ? row.get(col) : null;
+        return tryParseDouble(v).orElse(Double.MAX_VALUE);   // nulls last
+    }
+
+    private String stringSortKey(List<String> row, int col) {
+        String v = col < row.size() ? row.get(col) : null;
+        return (v == null || v.isBlank()) ? "￿" : v;   // nulls last
+    }
+
+    // =========================================================================
+    // Row filtering
+    // =========================================================================
+
+    /**
+     * Keeps only the rows where the value in {@code colName} satisfies the
+     * given condition. Rows with a null / blank value in that column are kept
+     * unchanged (use {@link #dropMissingRows} to remove them separately).
+     *
+     * <p>Supported operators: {@code ==}, {@code !=}, {@code >}, {@code <},
+     * {@code >=}, {@code <=}, {@code contains} (case-insensitive substring).</p>
+     *
+     * <p>Numeric comparisons ({@code >}, {@code <}, {@code >=}, {@code <=})
+     * only apply when both the cell value and {@code filterValue} parse as
+     * numbers; rows that don't parse are kept rather than silently dropped.</p>
+     *
+     * @param ds          dataset to filter (mutated in place)
+     * @param colName     column to test
+     * @param operator    one of {@code ==}, {@code !=}, {@code >}, {@code <},
+     *                    {@code >=}, {@code <=}, {@code contains}
+     * @param filterValue the value to compare against
+     * @return the same {@link DataSet} instance
+     */
+    public DataSet filterRows(DataSet ds, String colName, String operator, String filterValue) {
+        int col = ds.getColumnIndex(colName);
+        if (col < 0) return ds;
+
+        ds.getRows().removeIf(row -> {
+            String v = col < row.size() ? row.get(col) : null;
+            if (v == null || v.isBlank()) return false;   // keep missing cells
+            return !matchesFilter(v, operator, filterValue);
+        });
+        return ds;
+    }
+
+    private boolean matchesFilter(String cell, String op, String target) {
+        return switch (op) {
+            case "==" -> cell.equals(target);
+            case "!=" -> !cell.equals(target);
+            case "contains" -> cell.toLowerCase().contains(target.toLowerCase());
+            case ">", "<", ">=", "<=" -> {
+                Optional<Double> cv = tryParseDouble(cell);
+                Optional<Double> tv = tryParseDouble(target);
+                if (cv.isEmpty() || tv.isEmpty()) yield true; // can't compare → keep row
+                double c = cv.get(), t = tv.get();
+                yield switch (op) {
+                    case ">"  -> c > t;
+                    case "<"  -> c < t;
+                    case ">=" -> c >= t;
+                    case "<=" -> c <= t;
+                    default   -> true;
+                };
+            }
+            default -> true;
+        };
+    }
+
     // =========================================================================
     // Private helpers
     // =========================================================================

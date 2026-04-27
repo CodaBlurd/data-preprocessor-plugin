@@ -37,13 +37,20 @@ intellij {
 
 patchPluginXml {
     sinceBuild = pluginSinceBuild
-    // untilBuild intentionally omitted — no upper limit means the plugin
-    // will be offered to users on all future IDE versions without needing
-    // a code change. This prevents the "no update button" problem where
-    // an old pluginUntilBuild value makes installed versions appear
-    // incompatible with newer IDEs.
+    // Empty string forces the Gradle plugin to write no untilBuild attribute
+    // in plugin.xml. Omitting the property entirely causes org.jetbrains.intellij
+    // to auto-fill "${sinceBuild}.*", which caps compatibility at build 233 and
+    // prevents update notifications on any newer IDE.
+    untilBuild = ""
     changeNotes = """
         <ul>
+          <li><b>1.2.0</b> — Label Encode, One-Hot Encode, Train/Test Split, Sort Column, and
+              Filter Rows (==, !=, &gt;, &lt;, &gt;=, &lt;=, contains). Tool window refactored
+              into focused panel classes. Fixed broken One-Hot Encode Python output, unreachable
+              dropdown entries for new operations, and unconditional ratio validation.</li>
+          <li><b>1.1.1</b> — Build fix: set untilBuild to empty string so the plugin
+              has no upper compatibility ceiling. The 1.1.0 build was incorrectly capped
+              at build 233.* due to Gradle plugin auto-fill behaviour.</li>
           <li><b>1.1.0</b> — Excel (.xlsx) and JSON support: load, profile, and clean Excel
               and JSON files alongside CSV. JSON headers derived from the full key union across
               all objects. Generated pandas code uses pd.read_excel() or pd.read_json()

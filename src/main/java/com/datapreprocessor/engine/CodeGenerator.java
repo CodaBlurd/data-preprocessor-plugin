@@ -26,7 +26,12 @@ public class CodeGenerator {
         REMOVE_OUTLIERS_IQR,
         NORMALIZE_MINMAX,
         NORMALIZE_ZSCORE,
-        CAST_COLUMN
+        CAST_COLUMN,
+        TRAIN_TEST_SPLIT,
+        LABEL_ENCODE,
+        ONE_HOT_ENCODE,
+        SORT_COLUMN,
+        FILTER_ROWS;
     }
 
     /**
@@ -179,6 +184,61 @@ public class CodeGenerator {
                 yield String.format(
                     "# Cast column %s to %s\n" +
                     "df[%s] = df[%s].astype(\"%s\")", col, pandasType, col, col, pandasType);
+            }
+
+            case TRAIN_TEST_SPLIT -> {
+                String ratio = step.param() != null ? step.param() : "0.8";
+                double trainRatio = Double.parseDouble(ratio);
+                double testRatio = 1.0 - trainRatio;
+                yield String.format("""
+                    # Train/Test Split (%.0f%% train)
+                    from sklearn.model_selection import train_test_split
+                    df_train, df_test = train_test_split(df, test_size=%.2f, random_state=42)
+                    print(f"Train: {len(df_train)} rows | Test: {len(df_test)} rows")
+                    """,
+                        trainRatio * 100,
+                        testRatio);
+            }
+            case LABEL_ENCODE ->
+                    String.format(
+                            "# Label encode %s (each unique value → integer)\n" +
+                                    "df[%s], _ = pd.factorize(df[%s])",
+                            col, col, col);
+
+            case ONE_HOT_ENCODE ->
+                    String.format(
+                            "# One-hot encode %s (expands into binary columns)\n" +
+                            "df = pd.get_dummies(df, columns=[%s], dtype=int)",
+                            col, col);
+
+            case SORT_COLUMN -> {
+                boolean asc = !"descending".equals(step.param());
+                yield String.format(
+                        "# Sort by %s (%s)\n" +
+                        "df = df.sort_values(by=%s, ascending=%s).reset_index(drop=True)",
+                        step.column(), asc ? "ascending" : "descending", col, asc ? "True" : "False");
+            }
+
+            case FILTER_ROWS -> {
+                String raw   = step.param() != null ? step.param() : "==|";
+                int    sep   = raw.indexOf('|');
+                String op    = sep > 0 ? raw.substring(0, sep) : "==";
+                String val   = sep >= 0 ? raw.substring(sep + 1) : "";
+                boolean isNum = isNumericString(val);
+                String pyVal  = isNum ? val : "\"" + val + "\"";
+
+                String condition = switch (op) {
+                    case "contains" -> String.format(
+                            "df[%s].astype(str).str.contains(%s, case=False, na=False)", col, pyVal);
+                    default -> String.format("df[%s] %s %s", col, op, pyVal);
+                };
+
+                yield String.format(
+                        "# Filter rows: keep where %s %s %s\n" +
+                        "before = len(df)\n" +
+                        "df = df[%s]\n" +
+                        "print(f\"Filter removed {before - len(df)} rows\")",
+                        step.column(), op, val, condition);
             }
         };
     }
