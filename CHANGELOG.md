@@ -7,7 +7,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-## [1.2.0] — 2026-04-27
+## [1.2.1] — 2026-04-27
 
 ### Added
 - **Label Encoding** — encode any categorical column to consecutive integer indices

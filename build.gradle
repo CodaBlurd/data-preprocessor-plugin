@@ -44,7 +44,7 @@ patchPluginXml {
     untilBuild = ""
     changeNotes = """
         <ul>
-          <li><b>1.2.0</b> — Label Encode, One-Hot Encode, Train/Test Split, Sort Column, and
+          <li><b>1.2.1</b> — Label Encode, One-Hot Encode, Train/Test Split, Sort Column, and
               Filter Rows (==, !=, &gt;, &lt;, &gt;=, &lt;=, contains). Tool window refactored
               into focused panel classes. Fixed broken One-Hot Encode Python output, unreachable
               dropdown entries for new operations, and unconditional ratio validation.</li>
