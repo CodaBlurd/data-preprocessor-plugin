@@ -1,9 +1,12 @@
 package com.datapreprocessor.toolwindow;
 
+import com.datapreprocessor.engine.CodeGenerator;
 import com.datapreprocessor.engine.DataCleaner;
 import com.datapreprocessor.engine.DataExporter;
 import com.datapreprocessor.engine.CodeGenerator.Operation;
 import com.datapreprocessor.engine.CodeGenerator.PreprocessingStep;
+import com.datapreprocessor.model.ColumnProfile;
+import com.datapreprocessor.model.ColumnProfile.DataType;
 import com.datapreprocessor.model.DataSet;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.ComboBox;
@@ -23,80 +26,91 @@ import java.util.function.Supplier;
 /**
  * Tab 3 — Clean &amp; Transform.
  *
- * <p>Owns the operation form, pipeline step list, Apply button, and
- * Export CSV button. All cross-panel communication happens through
- * constructor-injected callbacks:</p>
+ * <p>Owns the operation form, pipeline step list, and three action buttons.
+ * All cross-panel communication happens through constructor-injected callbacks:</p>
  * <ul>
- *   <li>{@code getDataSet}   — reads the currently loaded {@link DataSet}.</li>
- *   <li>{@code onApplied}    — called after Apply with the cleaned copy;
- *                              the coordinator uses this to update the Preview
- *                              and Code panels.</li>
- *   <li>{@code getSourcePath}— returns the source file path, used to derive
- *                              the cleaned CSV output path.</li>
- *   <li>{@code onStatus}     — forwards status messages to the shared status bar.</li>
+ *   <li>{@code getDataSet}         — reads the currently loaded {@link DataSet}.</li>
+ *   <li>{@code onApplied}          — called after Apply with the cleaned copy;
+ *                                    coordinator updates the Preview tab only.</li>
+ *   <li>{@code onCodeGenerated}    — called after Generate with the Python source;
+ *                                    coordinator pushes it to the Code tab.</li>
+ *   <li>{@code getSourcePath}      — returns the source file path for CSV export.</li>
+ *   <li>{@code onStatus}           — forwards status messages to the shared status bar.</li>
+ *   <li>{@code onStepCountChanged} — fires with the new step count on every add/remove/clear;
+ *                                    coordinator uses this to update the tab badge.</li>
  * </ul>
  */
 class CleanPanel {
 
     // ── Dependencies (injected) ───────────────────────────────────────────────
-    private final Project          project;
-    private final Supplier<DataSet> getDataSet;
-    private final Consumer<DataSet> onApplied;
-    private final Supplier<String>  getSourcePath;
-    private final Consumer<String>  onStatus;
+    private final Project            project;
+    private final Supplier<DataSet>  getDataSet;
+    private final Consumer<DataSet>  onApplied;
+    private final Consumer<String>   onCodeGenerated;
+    private final Supplier<String>   getSourcePath;
+    private final Consumer<String>   onStatus;
+    private final Consumer<Integer>  onStepCountChanged;
 
     // ── Pipeline state ────────────────────────────────────────────────────────
-    private final List<PreprocessingStep>  pendingSteps  = new ArrayList<>();
-    private final DefaultListModel<String> stepListModel = new DefaultListModel<>();
+    private final List<PreprocessingStep>  pendingSteps      = new ArrayList<>();
+    private final DefaultListModel<String> stepListModel     = new DefaultListModel<>();
+    private final List<String>             actualColumnNames = new ArrayList<>();
 
     // The last cleaned result — retained so Export CSV doesn't require re-running Apply
     private DataSet cleanedDataSet;
 
     // ── Operation form controls ───────────────────────────────────────────────
     private final ComboBox<String> opSelector = new ComboBox<>(new String[]{
-            "Drop rows with any missing value",   // 0
-            "Fill missing → Mean",                // 1
-            "Fill missing → Median",              // 2
-            "Fill missing → Mode",                // 3
-            "Fill missing → Custom value",        // 4
-            "Remove duplicate rows",              // 5
-            "Remove outliers (IQR)",              // 6
-            "Normalize: Min-Max [0,1]",           // 7
-            "Normalize: Z-Score",                 // 8
-            "Cast column type…",                  // 9
-            "Train / Test split",                 // 10
-            "Label encode column",                // 11
-            "One-hot encode column",              // 12
-            "Sort column…",                       // 13
-            "Filter rows by condition"            // 14
+            "Drop rows with any missing value",    // 0
+            "Fill missing → Mean",                 // 1
+            "Fill missing → Median",               // 2
+            "Fill missing → Mode",                 // 3
+            "Fill missing → Custom value",         // 4
+            "Remove duplicate rows",               // 5
+            "Remove outliers (IQR)",               // 6
+            "Normalize: Min-Max [0,1]",            // 7
+            "Normalize: Z-Score (StandardScaler)", // 8
+            "Cast column type…",                   // 9
+            "Train / Test split",                  // 10
+            "Label encode column",                 // 11
+            "One-hot encode column",               // 12
+            "Sort column…",                        // 13
+            "Filter rows by condition",            // 14
+            "Normalize: Robust Scaler"             // 15
     });
-    private final ComboBox<String> colSelector     = new ComboBox<>();
-    private final JTextField       customValueField = new JTextField(10);
-    private final JTextField       splitRatioField  = new JTextField("0.8");
-    private final ComboBox<String> castTypeBox      = new ComboBox<>(
+    private final ComboBox<String> colSelector       = new ComboBox<>();
+    private final JTextField       customValueField   = new JTextField(10);
+    private final JTextField       splitRatioField    = new JTextField("0.8");
+    private final ComboBox<String> castTypeBox        = new ComboBox<>(
             new String[]{ "int", "float", "boolean", "string" });
-    private final ComboBox<String> sortOrderBox     = new ComboBox<>(
+    private final ComboBox<String> sortOrderBox       = new ComboBox<>(
             new String[]{ "Ascending (A → Z / 0 → 9)", "Descending (Z → A / 9 → 0)" });
-    private final ComboBox<String> filterOperatorBox = new ComboBox<>(
+    private final ComboBox<String> filterOperatorBox  = new ComboBox<>(
             new String[]{ "==", "!=", ">", "<", ">=", "<=", "contains" });
-    private final JTextField       filterValueField  = new JTextField(10);
-    private final JList<String>    stepList          = new JList<>(stepListModel);
+    private final JTextField       filterValueField   = new JTextField(10);
+    private final JList<String>    stepList           = new JList<>(stepListModel);
 
-    // Kept as fields so they can be enabled / disabled from loadDataSet()
+    // Kept as fields so they can be enabled / disabled dynamically
     private JButton applyBtn;
+    private JButton generateBtn;
+    private JButton exportBtn;
 
     // ── Constructor ───────────────────────────────────────────────────────────
 
     CleanPanel(Project project,
-               Supplier<DataSet> getDataSet,
-               Consumer<DataSet> onApplied,
-               Supplier<String>  getSourcePath,
-               Consumer<String>  onStatus) {
-        this.project       = project;
-        this.getDataSet    = getDataSet;
-        this.onApplied     = onApplied;
-        this.getSourcePath = getSourcePath;
-        this.onStatus      = onStatus;
+               Supplier<DataSet>  getDataSet,
+               Consumer<DataSet>  onApplied,
+               Consumer<String>   onCodeGenerated,
+               Supplier<String>   getSourcePath,
+               Consumer<String>   onStatus,
+               Consumer<Integer>  onStepCountChanged) {
+        this.project             = project;
+        this.getDataSet          = getDataSet;
+        this.onApplied           = onApplied;
+        this.onCodeGenerated     = onCodeGenerated;
+        this.getSourcePath       = getSourcePath;
+        this.onStatus            = onStatus;
+        this.onStepCountChanged  = onStepCountChanged;
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -111,14 +125,22 @@ class CleanPanel {
     }
 
     /**
-     * Rebuilds the column selector when a new dataset is loaded.
-     * Also resets the cleaned state.
+     * Rebuilds the column selector with type badges when a new dataset is loaded.
+     * Stores bare column names separately so badge text never leaks into step params.
      */
-    void onDataSetLoaded(DataSet ds) {
+    void onDataSetLoaded(DataSet ds, List<ColumnProfile> profiles) {
         colSelector.removeAllItems();
-        for (String header : ds.getHeaders()) colSelector.addItem(header);
+        actualColumnNames.clear();
+        for (int i = 0; i < ds.getHeaders().size(); i++) {
+            String header = ds.getHeaders().get(i);
+            actualColumnNames.add(header);
+            String badge = (profiles != null && i < profiles.size())
+                    ? "  [" + typeLabel(profiles.get(i).getDataType()) + "]"
+                    : "";
+            colSelector.addItem(header + badge);
+        }
         cleanedDataSet = null;
-        updateApplyButtonState();
+        updateButtonStates();
     }
 
     /** Clears all pipeline steps — called when a new file is loaded. */
@@ -126,7 +148,8 @@ class CleanPanel {
         pendingSteps.clear();
         stepListModel.clear();
         cleanedDataSet = null;
-        updateApplyButtonState();
+        updateButtonStates();
+        notifyStepCount();
     }
 
     /** Returns a snapshot of the current pipeline for code generation. */
@@ -207,12 +230,12 @@ class CleanPanel {
 
         opSelector.addActionListener(e -> {
             int idx = opSelector.getSelectedIndex();
-            customLabel.setVisible(idx == 4);      customValueField.setVisible(idx == 4);
-            castLabel.setVisible(idx == 9);        castTypeBox.setVisible(idx == 9);
-            splitLabel.setVisible(idx == 10);      splitRatioField.setVisible(idx == 10);
-            sortLabel.setVisible(idx == 13);       sortOrderBox.setVisible(idx == 13);
-            filterOpLabel.setVisible(idx == 14);   filterOperatorBox.setVisible(idx == 14);
-            filterValLabel.setVisible(idx == 14);  filterValueField.setVisible(idx == 14);
+            customLabel.setVisible(idx == 4);     customValueField.setVisible(idx == 4);
+            castLabel.setVisible(idx == 9);       castTypeBox.setVisible(idx == 9);
+            splitLabel.setVisible(idx == 10);     splitRatioField.setVisible(idx == 10);
+            sortLabel.setVisible(idx == 13);      sortOrderBox.setVisible(idx == 13);
+            filterOpLabel.setVisible(idx == 14);  filterOperatorBox.setVisible(idx == 14);
+            filterValLabel.setVisible(idx == 14); filterValueField.setVisible(idx == 14);
         });
 
         // Add Step button — full width, below the optional fields
@@ -232,19 +255,47 @@ class CleanPanel {
         panel.add(new JBScrollPane(stepList), BorderLayout.CENTER);
 
         JPanel mgmt = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
-        JButton removeBtn = new JButton("Remove selected");
-        JButton clearBtn  = new JButton("Clear all");
+        JButton moveUpBtn   = new JButton("↑ Up");
+        JButton moveDownBtn = new JButton("↓ Down");
+        JButton removeBtn   = new JButton("Remove");
+        JButton clearBtn    = new JButton("Clear all");
+
+        moveUpBtn.addActionListener(e -> {
+            int sel = stepList.getSelectedIndex();
+            if (sel > 0) {
+                String label = stepListModel.remove(sel);
+                stepListModel.add(sel - 1, label);
+                PreprocessingStep step = pendingSteps.remove(sel);
+                pendingSteps.add(sel - 1, step);
+                stepList.setSelectedIndex(sel - 1);
+            }
+        });
+
+        moveDownBtn.addActionListener(e -> {
+            int sel = stepList.getSelectedIndex();
+            if (sel >= 0 && sel < stepListModel.size() - 1) {
+                String label = stepListModel.remove(sel);
+                stepListModel.add(sel + 1, label);
+                PreprocessingStep step = pendingSteps.remove(sel);
+                pendingSteps.add(sel + 1, step);
+                stepList.setSelectedIndex(sel + 1);
+            }
+        });
 
         removeBtn.addActionListener(e -> {
             int sel = stepList.getSelectedIndex();
             if (sel >= 0) {
                 stepListModel.remove(sel);
                 pendingSteps.remove(sel);
-                updateApplyButtonState();
+                updateButtonStates();
+                notifyStepCount();
             }
         });
+
         clearBtn.addActionListener(e -> clearPipeline());
 
+        mgmt.add(moveUpBtn);
+        mgmt.add(moveDownBtn);
         mgmt.add(removeBtn);
         mgmt.add(clearBtn);
         panel.add(mgmt, BorderLayout.SOUTH);
@@ -252,21 +303,27 @@ class CleanPanel {
     }
 
     private JPanel buildActionBar() {
-        JPanel bar = new JPanel(new GridLayout(2, 1, 0, 4));
+        JPanel bar = new JPanel(new GridLayout(3, 1, 0, 4));
         bar.setBorder(BorderFactory.createEmptyBorder(6, 0, 0, 0));
 
-        applyBtn = new JButton("▶   Apply steps & generate Python code");
+        applyBtn = new JButton("▶   Apply steps  (preview result)");
         applyBtn.setBackground(new Color(60, 130, 70));
         applyBtn.setForeground(Color.WHITE);
         applyBtn.setOpaque(true);
         applyBtn.setFont(applyBtn.getFont().deriveFont(Font.BOLD));
         applyBtn.setEnabled(false);
-        applyBtn.addActionListener(e -> applyAndGenerate());
+        applyBtn.addActionListener(e -> applySteps());
 
-        JButton exportBtn = new JButton("📤  Export cleaned CSV to disk");
+        generateBtn = new JButton("🐍  Generate Python code");
+        generateBtn.setEnabled(false);
+        generateBtn.addActionListener(e -> generateCode());
+
+        exportBtn = new JButton("📤  Export cleaned CSV to disk");
+        exportBtn.setEnabled(false);
         exportBtn.addActionListener(e -> exportCleanedCsv());
 
         bar.add(applyBtn);
+        bar.add(generateBtn);
         bar.add(exportBtn);
         return bar;
     }
@@ -277,14 +334,18 @@ class CleanPanel {
         DataSet ds = getDataSet.get();
         if (ds == null) { onStatus.accept("Load a dataset first."); return; }
 
-        int    opIdx      = opSelector.getSelectedIndex();
-        String col        = (String) colSelector.getSelectedItem();
-        String custom     = customValueField.getText().trim();
-        String cast       = (String) castTypeBox.getSelectedItem();
-        String ratio      = splitRatioField.getText().trim();
-        String sortOrder  = sortOrderBox.getSelectedIndex() == 0 ? "ascending" : "descending";
-        String filterOp   = (String) filterOperatorBox.getSelectedItem();
-        String filterVal  = filterValueField.getText().trim();
+        int    opIdx     = opSelector.getSelectedIndex();
+        int    colIdx    = colSelector.getSelectedIndex();
+        // Use the bare column name — never the display string that includes the type badge
+        String col       = (colIdx >= 0 && colIdx < actualColumnNames.size())
+                           ? actualColumnNames.get(colIdx)
+                           : (String) colSelector.getSelectedItem();
+        String custom    = customValueField.getText().trim();
+        String cast      = (String) castTypeBox.getSelectedItem();
+        String ratio     = splitRatioField.getText().trim();
+        String sortOrder = sortOrderBox.getSelectedIndex() == 0 ? "ascending" : "descending";
+        String filterOp  = (String) filterOperatorBox.getSelectedItem();
+        String filterVal = filterValueField.getText().trim();
 
         if (opIdx == 10) {
             try {
@@ -316,22 +377,24 @@ class CleanPanel {
             case 12 -> new PreprocessingStep(Operation.ONE_HOT_ENCODE,      col);
             case 13 -> new PreprocessingStep(Operation.SORT_COLUMN,         col, sortOrder);
             case 14 -> new PreprocessingStep(Operation.FILTER_ROWS,         col, filterOp + "|" + filterVal);
+            case 15 -> new PreprocessingStep(Operation.NORMALIZE_ROBUST,    col);
             default -> null;
         };
         if (step == null) return;
 
         pendingSteps.add(step);
         stepListModel.addElement(describeStep(step));
-        updateApplyButtonState();
+        updateButtonStates();
+        notifyStepCount();
         onStatus.accept("Step added. Total: " + pendingSteps.size());
     }
 
-    private void applyAndGenerate() {
+    /** Runs the Java transformation and notifies the coordinator to refresh the Preview tab. */
+    private void applySteps() {
         DataSet ds = getDataSet.get();
-        if (ds == null)              { onStatus.accept("Load a dataset first."); return; }
-        if (pendingSteps.isEmpty())  { onStatus.accept("No steps to apply.");    return; }
+        if (ds == null)             { onStatus.accept("Load a dataset first."); return; }
+        if (pendingSteps.isEmpty()) { onStatus.accept("No steps to apply.");    return; }
 
-        // Operate on a copy — the original is kept intact for re-runs
         DataSet working = ds.shallowCopy();
         DataCleaner cleaner = new DataCleaner();
 
@@ -348,29 +411,38 @@ class CleanPanel {
                 case NORMALIZE_MINMAX    -> cleaner.normalizeMinMax(working, col);
                 case NORMALIZE_ZSCORE    -> cleaner.normalizeZScore(working, col);
                 case CAST_COLUMN         -> cleaner.castColumn(working, col, step.param());
-                case TRAIN_TEST_SPLIT -> { /* split is Python-only — no Java transformation */ }
-                case LABEL_ENCODE    -> cleaner.labelEncode(working, col);
-                case ONE_HOT_ENCODE  -> cleaner.oneHotEncode(working, col);
-                case SORT_COLUMN     -> cleaner.sortColumn(working, col,
-                                            !"descending".equals(step.param()));
-                case FILTER_ROWS     -> {
+                case TRAIN_TEST_SPLIT    -> { /* Python-only — no Java transformation */ }
+                case LABEL_ENCODE        -> cleaner.labelEncode(working, col);
+                case ONE_HOT_ENCODE      -> cleaner.oneHotEncode(working, col);
+                case SORT_COLUMN         -> cleaner.sortColumn(working, col,
+                                               !"descending".equals(step.param()));
+                case FILTER_ROWS         -> {
                     String raw = step.param() != null ? step.param() : "==|";
                     int    sep = raw.indexOf('|');
                     String op  = sep > 0 ? raw.substring(0, sep) : "==";
                     String val = sep >= 0 ? raw.substring(sep + 1) : "";
                     cleaner.filterRows(working, col, op, val);
                 }
+                case NORMALIZE_ROBUST -> cleaner.normalizeRobustScaler(working, col);
             }
         }
 
         cleanedDataSet = working;
-
-        // Notify coordinator: updates PreviewPanel + CodePanel
+        updateButtonStates();  // enables Export now that we have a cleaned result
         onApplied.accept(working);
+        onStatus.accept("Applied " + pendingSteps.size() + " step(s)  ·  "
+                + working.getRowCount() + " rows × " + working.getColumnCount() + " cols");
+    }
 
-        onStatus.accept("Applied " + pendingSteps.size() + " step(s). "
-                + working.getRowCount() + " rows remain. "
-                + "Use '📤 Export cleaned CSV' or '💾 Save as .py' to save.");
+    /** Generates Python code for the current pipeline and sends it to the Code tab. */
+    private void generateCode() {
+        DataSet ds = getDataSet.get();
+        if (ds == null)             { onStatus.accept("Load a dataset first."); return; }
+        if (pendingSteps.isEmpty()) { onStatus.accept("No steps to generate code for."); return; }
+
+        String code = new CodeGenerator().generate(ds.getFilePath(), pendingSteps);
+        onCodeGenerated.accept(code);
+        onStatus.accept("Python code generated  ·  " + pendingSteps.size() + " step(s)");
     }
 
     /**
@@ -379,7 +451,7 @@ class CleanPanel {
      */
     private void exportCleanedCsv() {
         if (cleanedDataSet == null) {
-            onStatus.accept("Nothing to export — run 'Apply & Generate Code' first.");
+            onStatus.accept("Nothing to export — run 'Apply steps' first.");
             return;
         }
 
@@ -391,14 +463,12 @@ class CleanPanel {
         onStatus.accept("Exporting…");
 
         SwingWorker<Void, Void> worker = new SwingWorker<>() {
-            @Override
-            protected Void doInBackground() throws IOException {
+            @Override protected Void doInBackground() throws IOException {
                 new DataExporter().exportCsv(cleanedDataSet, csvPath);
                 LocalFileSystem.getInstance().refreshAndFindFileByPath(csvPath);
                 return null;
             }
-            @Override
-            protected void done() {
+            @Override protected void done() {
                 try {
                     get();
                     onStatus.accept("Exported " + rows + " rows → " + csvPath);
@@ -414,8 +484,25 @@ class CleanPanel {
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private void updateApplyButtonState() {
-        if (applyBtn != null) applyBtn.setEnabled(!pendingSteps.isEmpty());
+    private void updateButtonStates() {
+        boolean hasSteps   = !pendingSteps.isEmpty();
+        boolean hasCleaned = cleanedDataSet != null;
+        if (applyBtn    != null) applyBtn.setEnabled(hasSteps);
+        if (generateBtn != null) generateBtn.setEnabled(hasSteps);
+        if (exportBtn   != null) exportBtn.setEnabled(hasCleaned);
+    }
+
+    private void notifyStepCount() {
+        if (onStepCountChanged != null) onStepCountChanged.accept(pendingSteps.size());
+    }
+
+    private String typeLabel(DataType dt) {
+        return switch (dt) {
+            case NUMERIC -> "NUM";
+            case BOOLEAN -> "BOOL";
+            case TEXT    -> "TXT";
+            default      -> "?";
+        };
     }
 
     private String describeStep(PreprocessingStep s) {
@@ -432,17 +519,18 @@ class CleanPanel {
             case NORMALIZE_MINMAX    -> "Min-Max normalize" + col;
             case NORMALIZE_ZSCORE    -> "Z-Score normalize" + col;
             case CAST_COLUMN         -> "Cast" + col + " to" + par;
-            case TRAIN_TEST_SPLIT -> "Train-test split" + par;
-            case LABEL_ENCODE     -> "Label encode" + col;
-            case ONE_HOT_ENCODE   -> "One-hot encode" + col;
-            case SORT_COLUMN      -> "Sort" + col + " (" + s.param() + ")";
-            case FILTER_ROWS      -> {
+            case TRAIN_TEST_SPLIT    -> "Train-test split" + par;
+            case LABEL_ENCODE        -> "Label encode" + col;
+            case ONE_HOT_ENCODE      -> "One-hot encode" + col;
+            case SORT_COLUMN         -> "Sort" + col + " (" + s.param() + ")";
+            case FILTER_ROWS         -> {
                 String raw = s.param() != null ? s.param() : "==|";
                 int    sep = raw.indexOf('|');
                 String op  = sep > 0 ? raw.substring(0, sep) : "==";
                 String val = sep >= 0 ? raw.substring(sep + 1) : "";
                 yield "Filter" + col + " " + op + " \"" + val + "\"";
             }
+            case NORMALIZE_ROBUST -> "Robust normalize" + col;
         };
     }
 }

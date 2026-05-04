@@ -79,9 +79,11 @@ public class DataPreprocessorToolWindow {
         cleanPanel   = new CleanPanel(
                 project,
                 () -> currentDataSet,
-                this::onApplied,           // called after Apply
+                this::onApplied,           // preview update after Apply
+                this::onCodeGenerated,     // code tab update after Generate
                 this::getSourcePath,
-                this::setStatus);
+                this::setStatus,
+                this::onStepCountChanged); // tab badge update
 
         buildUi();
     }
@@ -111,7 +113,7 @@ public class DataPreprocessorToolWindow {
         previewPanel.showData(ds);
         profilePanel.refresh(columnProfiles);
         cleanPanel.clearPipeline();
-        cleanPanel.onDataSetLoaded(ds);
+        cleanPanel.onDataSetLoaded(ds, columnProfiles);
         codePanel.clear();
 
         tabs.setSelectedIndex(0); // jump to Preview so the user sees data immediately
@@ -218,7 +220,7 @@ public class DataPreprocessorToolWindow {
 
                     previewPanel.showData(fresh);
                     profilePanel.refresh(columnProfiles);
-                    cleanPanel.onDataSetLoaded(fresh);
+                    cleanPanel.onDataSetLoaded(fresh, columnProfiles);
                     // Pipeline steps intentionally preserved across reload
 
                     setStatus("Reloaded: " + fresh.getRowCount()
@@ -240,15 +242,32 @@ public class DataPreprocessorToolWindow {
     // =========================================================================
 
     /**
-     * Called by {@link CleanPanel} after Apply. Updates the Preview tab with
-     * the cleaned dataset and generates the Python script into the Code tab.
+     * Called by {@link CleanPanel} after Apply — updates the Preview tab only
+     * and jumps to it so the user can inspect the transformed data immediately.
      */
     private void onApplied(DataSet cleaned) {
         previewPanel.showData(cleaned);
-        String code = new CodeGenerator().generate(
-                currentDataSet.getFilePath(), cleanPanel.getSteps());
+        tabs.setSelectedIndex(0); // jump to Preview tab
+    }
+
+    /**
+     * Called by {@link CleanPanel} after Generate — pushes the Python source
+     * into the Code tab and jumps to it.
+     */
+    private void onCodeGenerated(String code) {
         codePanel.setCode(code);
         tabs.setSelectedIndex(3); // jump to Generated Code tab
+    }
+
+    /**
+     * Called by {@link CleanPanel} whenever the pipeline step count changes.
+     * Updates the tab label with a badge showing the pending step count.
+     */
+    private void onStepCountChanged(int count) {
+        String label = count > 0
+                ? "🧹 Clean & Transform (" + count + ")"
+                : "🧹 Clean & Transform";
+        SwingUtilities.invokeLater(() -> tabs.setTitleAt(2, label));
     }
 
     /** Shared status bar writer — passed as a lambda to all child panels. */

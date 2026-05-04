@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>com.datapreprocessor.plugin</id>
     <name>Data Preprocessor</name>
-    <version>1.2.1</version>
+    <version>1.3.0</version>
     <vendor email="admin@keencodelabs.com" url="https://github.com/codaBlurd/data-preprocessor-plugin">
         Keen Code Labs
     </vendor>
@@ -29,6 +29,7 @@
           <li><b>Train / Test Split</b> — split the dataset with a configurable ratio; generates sklearn code</li>
           <li><b>Sort Column</b> — sort the dataset ascending or descending by any column (numeric or text)</li>
           <li><b>Filter Rows</b> — keep only rows matching a condition (==, !=, &gt;, &lt;, &gt;=, &lt;=, contains)</li>
+          <li><b>Robust Scaler</b> — outlier-resistant scaling using median and IQR: (x − median) / IQR</li>
           <li><b>Pandas Code Generation</b> — one click produces a complete, ready-to-run pandas script</li>
           <li><b>Export cleaned CSV</b> — save the transformed dataset to disk alongside the source file</li>
         </ul>

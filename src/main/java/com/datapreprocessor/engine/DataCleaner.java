@@ -316,6 +316,40 @@ public class DataCleaner {
         return ds;
     }
 
+    /**
+     * Robust-scales {@code columnName} using the median and IQR:
+     * {@code (x - median) / IQR}.
+     *
+     * <p>Unlike Min-Max or Z-Score, this scaler is resistant to outliers because
+     * it centres on the median (not the mean) and divides by the inter-quartile
+     * range (not the standard deviation). Null / non-numeric cells are left
+     * unchanged. If IQR is zero (all values in the same quartile band) the
+     * column is returned unchanged.</p>
+     *
+     * @param ds         the dataset to transform
+     * @param columnName the column to transform
+     * @return the same {@link DataSet} instance
+     */
+    public DataSet normalizeRobustScaler(DataSet ds, String columnName){
+        int colIdx = ds.getColumnIndex(columnName);
+        if (colIdx < 0) return ds;
+        double median = columnPercentile(ds, columnName, 50);
+        double q1 = columnPercentile(ds, columnName, 25);
+        double q3 = columnPercentile(ds, columnName, 75);
+        double iqr = q3 - q1;
+
+        if (iqr == 0) return ds;
+
+        for (int r = 0; r < ds.getRowCount(); r++) {
+            String v = ds.getValue(r, colIdx);
+            int finalR = r;
+            tryParseDouble(v).ifPresent(d ->
+                    ds.setValue(finalR, colIdx, formatDouble((d - median) / iqr)));
+        }
+        return ds;
+
+    }
+
     // =========================================================================
     // Sorting
     // =========================================================================

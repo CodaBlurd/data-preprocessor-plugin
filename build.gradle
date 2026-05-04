@@ -44,6 +44,10 @@ patchPluginXml {
     untilBuild = ""
     changeNotes = """
         <ul>
+          <li><b>1.3.0</b> — Robust Scaler (median/IQR, outlier-resistant). UI improvements:
+              step reordering (↑ ↓), column type badges [NUM/TXT/BOOL], pipeline step count
+              badge on tab, row × col count in status bar after Apply, Apply and Generate Python
+              code split into separate buttons, Export CSV disabled until Apply has been run.</li>
           <li><b>1.2.1</b> — Label Encode, One-Hot Encode, Train/Test Split, Sort Column, and
               Filter Rows (==, !=, &gt;, &lt;, &gt;=, &lt;=, contains). Tool window refactored
               into focused panel classes. Fixed broken One-Hot Encode Python output, unreachable

@@ -31,7 +31,8 @@ public class CodeGenerator {
         LABEL_ENCODE,
         ONE_HOT_ENCODE,
         SORT_COLUMN,
-        FILTER_ROWS;
+        FILTER_ROWS,
+        NORMALIZE_ROBUST;
     }
 
     /**
@@ -240,6 +241,14 @@ public class CodeGenerator {
                         "print(f\"Filter removed {before - len(df)} rows\")",
                         step.column(), op, val, condition);
             }
+
+            case NORMALIZE_ROBUST ->
+                    String.format(
+                            "# Robust scale %s using median and IQR (resistant to outliers)\n" +
+                                    "_med = df[%s].median()\n" +
+                                    "_iqr = df[%s].quantile(0.75) - df[%s].quantile(0.25)\n" +
+                                    "df[%s] = (df[%s] - _med) / _iqr",
+                            col, col, col, col, col, col);
         };
     }
 

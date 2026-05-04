@@ -7,6 +7,42 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.3.0] — 2026-05-04
+
+### Added
+- **Robust Scaler** — scales any numeric column using `(x − median) / IQR`, making it
+  resistant to outliers. Unlike Z-Score (StandardScaler), centering on the median means
+  extreme values don't distort the result. IQR = 0 is handled gracefully (column
+  returned unchanged). Generated pandas code uses `median()` and `quantile()`.
+- **Step reordering** — ↑ Up / ↓ Down buttons in the pipeline list let you reorder
+  steps without clearing and re-adding them.
+- **Column type badges** — the column selector now shows a `[NUM]`, `[TXT]`, or `[BOOL]`
+  badge next to every column name so users can see at a glance which operations make
+  sense for each column. Badge text never leaks into step parameters.
+- **Step count badge** — the Clean &amp; Transform tab label updates to
+  "🧹 Clean &amp; Transform (N)" whenever steps are in the pipeline, giving a
+  constant at-a-glance view of pipeline state from any tab.
+- **Row × col count in status bar** — after every Apply the status bar shows
+  "N rows × M cols" so data shape changes are immediately visible.
+
+### Changed
+- **Apply and Generate Python code are now separate buttons.** "▶ Apply steps" runs
+  the Java transformation and jumps to the Preview tab. "🐍 Generate Python code"
+  generates the pandas script and jumps to the Code tab. Both are enabled as soon as
+  any step is in the pipeline; neither requires the other to have run first.
+- Z-Score dropdown label renamed to "Normalize: Z-Score (StandardScaler)" so users
+  searching for StandardScaler find the equivalent operation immediately.
+
+### Fixed
+- `NORMALIZE_ROBUST` was missing from the apply dispatch in `CleanPanel`, causing the
+  Robust Scaler step to silently skip transformation in the Java preview.
+- Corrected `normalizeRobustScaler()` Javadoc — previously described Min-Max behaviour
+  ("scales to [0,1]") instead of the correct median/IQR formula.
+- Export CSV button is now disabled until Apply has been run at least once, preventing
+  the silent "nothing to export" error state when clicked on an uncleaned dataset.
+
+---
+
 ## [1.2.1] — 2026-04-27
 
 ### Added
