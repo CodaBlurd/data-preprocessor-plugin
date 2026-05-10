@@ -141,10 +141,16 @@ public class DataPreprocessorToolWindow {
     private void buildUi() {
         root.add(headerBar.getContent(), BorderLayout.NORTH);
 
+        JComponent cleanContent = cleanPanel.getContent();
         tabs.addTab("📊 Preview",           previewPanel.getContent());
         tabs.addTab("📋 Column Profiles",   profilePanel.getContent());
-        tabs.addTab("🧹 Clean & Transform", cleanPanel.getContent());
+        tabs.addTab("🧹 Clean & Transform", cleanContent);
         tabs.addTab("🐍 Generated Code",    codePanel.getContent());
+        tabs.addChangeListener(e -> {
+            if (tabs.getSelectedComponent() == cleanContent) {
+                cleanPanel.refreshSettingsDefaults();
+            }
+        });
         root.add(tabs, BorderLayout.CENTER);
 
         statusLabel.setForeground(JBColor.GRAY);

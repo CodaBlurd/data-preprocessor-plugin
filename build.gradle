@@ -44,6 +44,11 @@ patchPluginXml {
     untilBuild = ""
     changeNotes = """
         <ul>
+          <li><b>1.4.0</b> — Settings page under Tools → Data Preprocessor for
+              preview row limit, default normalization method, and default train/test
+              ratio. Added undo/redo for pipeline edits, copy cleaned data as TSV for
+              spreadsheet paste, save dialogs for cleaned CSV and generated Python
+              script outputs, and stale-export prevention after pipeline changes.</li>
           <li><b>1.3.0</b> — Robust Scaler (median/IQR, outlier-resistant). UI improvements:
               step reordering (↑ ↓), column type badges [NUM/TXT/BOOL], pipeline step count
               badge on tab, row × col count in status bar after Apply, Apply and Generate Python

@@ -2,17 +2,23 @@ package com.datapreprocessor.toolwindow;
 
 import com.datapreprocessor.engine.DataExporter;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.fileChooser.FileChooserFactory;
+import com.intellij.openapi.fileChooser.FileSaverDescriptor;
+import com.intellij.openapi.fileChooser.FileSaverDialog;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.openapi.vfs.VirtualFileWrapper;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBScrollPane;
 
 import javax.swing.*;
 import java.awt.*;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -103,8 +109,8 @@ class CodePanel {
     }
 
     /**
-     * Writes the generated script to {@code preprocess_<name>.py} in the same
-     * directory as the source file, then opens it in the IDE editor.
+     * Prompts for a destination, writes the generated script, then opens it in
+     * the IDE editor.
      *
      * <p>File I/O and VFS refresh run on a {@link SwingWorker} background
      * thread. {@code FileEditorManager.openFile()} is deferred via
@@ -120,7 +126,28 @@ class CodePanel {
         String sourcePath = getSourcePath.get();
         if (sourcePath == null) return;
 
-        String pyPath = DataExporter.pythonScriptPath(sourcePath);
+        String defaultPath = DataExporter.pythonScriptPath(sourcePath);
+        Path defaultOutput = Paths.get(defaultPath);
+
+        FileSaverDescriptor descriptor = new FileSaverDescriptor(
+                "Save Python Script",
+                "Choose where to save the generated Python script",
+                "py"
+        );
+
+        FileSaverDialog dialog = FileChooserFactory.getInstance().createSaveFileDialog(descriptor, project);
+
+        VirtualFileWrapper selected = dialog.save(
+                LocalFileSystem.getInstance().findFileByNioFile(defaultOutput.getParent()),
+                defaultOutput.getFileName().toString()
+        );
+
+        if (selected == null) {
+            onStatus.accept("Save cancelled.");
+            return;
+        }
+
+        String pyPath = selected.getFile().getAbsolutePath();
         onStatus.accept("Saving…");
 
         SwingWorker<VirtualFile, Void> worker = new SwingWorker<>() {

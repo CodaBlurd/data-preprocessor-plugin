@@ -7,6 +7,34 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.4.0] — 2026-05-09
+
+### Added
+- **Settings page** under **Settings → Tools → Data Preprocessor** with persistent
+  options for preview row limit, default normalization operation, and default
+  train/test split ratio.
+- **Undo / Redo for pipeline editing** — step additions, removals, clears, and
+  reorder operations can now be undone and redone while building the pipeline.
+- **Copy cleaned data as TSV** — after Apply, copy the cleaned dataset with headers
+  as tab-separated values for direct paste into Excel or Google Sheets.
+- **Save dialogs for outputs** — cleaned CSV export and generated Python script save
+  now let users choose the destination path instead of always writing beside the
+  source file.
+
+### Changed
+- Preview rendering now respects the configured row limit instead of a hardcoded
+  value.
+- Train / Test split uses the configured default ratio when the Clean tab is opened
+  with an empty pipeline.
+- The configured default normalization method selects the initial normalization
+  operation in the Clean tab.
+
+### Fixed
+- Pipeline edits now invalidate the previously applied cleaned dataset, preventing
+  stale CSV/TSV export after steps are changed.
+
+---
+
 ## [1.3.0] — 2026-05-04
 
 ### Added

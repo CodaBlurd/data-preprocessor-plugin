@@ -1,5 +1,6 @@
 package com.datapreprocessor.toolwindow;
 
+import com.datapreprocessor.settings.DataPreprocessorSettings;
 import com.datapreprocessor.model.DataSet;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBScrollPane;
@@ -16,7 +17,7 @@ import java.net.URL;
  * <p>Uses a {@link CardLayout} to switch between two states:</p>
  * <ul>
  *   <li><b>Empty</b> — animated demo GIF shown before any file is loaded.</li>
- *   <li><b>Table</b> — up to {@value #PREVIEW_ROWS} rows of the loaded dataset.</li>
+ *   <li><b>Table</b> — up to the configured row limit of the loaded dataset.</li>
  * </ul>
  *
  * <p>Call {@link #showData(DataSet)} to display data and
@@ -24,7 +25,6 @@ import java.net.URL;
  */
 class PreviewPanel {
 
-    private static final int    PREVIEW_ROWS = 200;
     private static final String CARD_EMPTY   = "empty";
     private static final String CARD_TABLE   = "table";
 
@@ -44,11 +44,12 @@ class PreviewPanel {
     }
 
     /**
-     * Renders up to {@value #PREVIEW_ROWS} rows from {@code ds} and
+     * Renders up to the configured preview row limit from {@code ds} and
      * switches the card to the table view.
      */
     void showData(DataSet ds) {
-        int rowCount = Math.min(PREVIEW_ROWS, ds.getRowCount());
+        int previewLimit = DataPreprocessorSettings.getInstance().getPreviewRowLimit();
+        int rowCount = Math.min(previewLimit, ds.getRowCount());
         String[] headers = ds.getHeaders().toArray(new String[0]);
         Object[][] data  = new Object[rowCount][ds.getColumnCount()];
 

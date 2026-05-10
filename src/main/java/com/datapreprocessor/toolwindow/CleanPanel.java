@@ -8,16 +8,24 @@ import com.datapreprocessor.engine.CodeGenerator.PreprocessingStep;
 import com.datapreprocessor.model.ColumnProfile;
 import com.datapreprocessor.model.ColumnProfile.DataType;
 import com.datapreprocessor.model.DataSet;
+import com.datapreprocessor.settings.DataPreprocessorSettings;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.ComboBox;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.vfs.LocalFileSystem;
+import com.intellij.openapi.fileChooser.FileChooserFactory;
+import com.intellij.openapi.fileChooser.FileSaverDescriptor;
+import com.intellij.openapi.fileChooser.FileSaverDialog;
+import com.intellij.openapi.vfs.VirtualFileWrapper;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.ui.JBUI;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.datatransfer.StringSelection;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
@@ -41,7 +49,6 @@ import java.util.function.Supplier;
  * </ul>
  */
 class CleanPanel {
-
     // ── Dependencies (injected) ───────────────────────────────────────────────
     private final Project            project;
     private final Supplier<DataSet>  getDataSet;
@@ -55,6 +62,8 @@ class CleanPanel {
     private final List<PreprocessingStep>  pendingSteps      = new ArrayList<>();
     private final DefaultListModel<String> stepListModel     = new DefaultListModel<>();
     private final List<String>             actualColumnNames = new ArrayList<>();
+    private final List<List<PreprocessingStep>> undoStack     = new ArrayList<>();
+    private final List<List<PreprocessingStep>> redoStack     = new ArrayList<>();
 
     // The last cleaned result — retained so Export CSV doesn't require re-running Apply
     private DataSet cleanedDataSet;
@@ -80,7 +89,7 @@ class CleanPanel {
     });
     private final ComboBox<String> colSelector       = new ComboBox<>();
     private final JTextField       customValueField   = new JTextField(10);
-    private final JTextField       splitRatioField    = new JTextField("0.8");
+    private final JTextField       splitRatioField    = new JTextField(10);
     private final ComboBox<String> castTypeBox        = new ComboBox<>(
             new String[]{ "int", "float", "boolean", "string" });
     private final ComboBox<String> sortOrderBox       = new ComboBox<>(
@@ -94,6 +103,10 @@ class CleanPanel {
     private JButton applyBtn;
     private JButton generateBtn;
     private JButton exportBtn;
+    private JButton undoBtn;
+    private JButton redoBtn;
+    private JButton copyTsvBtn;
+
 
     // ── Constructor ───────────────────────────────────────────────────────────
 
@@ -111,6 +124,10 @@ class CleanPanel {
         this.getSourcePath       = getSourcePath;
         this.onStatus            = onStatus;
         this.onStepCountChanged  = onStepCountChanged;
+
+        DataPreprocessorSettings settings = DataPreprocessorSettings.getInstance();
+        splitRatioField.setText(String.valueOf(settings.getDefaultTrainRatio()));
+        applyDefaultNormalizationSelection();
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -140,13 +157,28 @@ class CleanPanel {
             colSelector.addItem(header + badge);
         }
         cleanedDataSet = null;
+        refreshSettingsDefaults();
         updateButtonStates();
+    }
+
+    /**
+     * Applies current settings to the operation defaults while the pipeline is
+     * still empty. Existing user-selected steps are left untouched.
+     */
+    void refreshSettingsDefaults() {
+        if (!pendingSteps.isEmpty()) return;
+
+        DataPreprocessorSettings settings = DataPreprocessorSettings.getInstance();
+        splitRatioField.setText(String.valueOf(settings.getDefaultTrainRatio()));
+        applyDefaultNormalizationSelection();
     }
 
     /** Clears all pipeline steps — called when a new file is loaded. */
     void clearPipeline() {
         pendingSteps.clear();
         stepListModel.clear();
+        undoStack.clear();
+        redoStack.clear();
         cleanedDataSet = null;
         updateButtonStates();
         notifyStepCount();
@@ -259,51 +291,71 @@ class CleanPanel {
         JButton moveDownBtn = new JButton("↓ Down");
         JButton removeBtn   = new JButton("Remove");
         JButton clearBtn    = new JButton("Clear all");
+        undoBtn             = new JButton("Undo");
+        redoBtn             = new JButton("Redo");
 
         moveUpBtn.addActionListener(e -> {
             int sel = stepList.getSelectedIndex();
             if (sel > 0) {
+                recordPipelineEdit();
                 String label = stepListModel.remove(sel);
                 stepListModel.add(sel - 1, label);
                 PreprocessingStep step = pendingSteps.remove(sel);
                 pendingSteps.add(sel - 1, step);
                 stepList.setSelectedIndex(sel - 1);
+                pipelineChanged();
             }
         });
 
         moveDownBtn.addActionListener(e -> {
             int sel = stepList.getSelectedIndex();
             if (sel >= 0 && sel < stepListModel.size() - 1) {
+                recordPipelineEdit();
                 String label = stepListModel.remove(sel);
                 stepListModel.add(sel + 1, label);
                 PreprocessingStep step = pendingSteps.remove(sel);
                 pendingSteps.add(sel + 1, step);
                 stepList.setSelectedIndex(sel + 1);
+                pipelineChanged();
             }
         });
 
         removeBtn.addActionListener(e -> {
             int sel = stepList.getSelectedIndex();
             if (sel >= 0) {
+                recordPipelineEdit();
                 stepListModel.remove(sel);
                 pendingSteps.remove(sel);
-                updateButtonStates();
-                notifyStepCount();
+                pipelineChanged();
             }
         });
 
-        clearBtn.addActionListener(e -> clearPipeline());
+        clearBtn.addActionListener(e -> {
+            if (!pendingSteps.isEmpty()) {
+                recordPipelineEdit();
+                pendingSteps.clear();
+                stepListModel.clear();
+                pipelineChanged();
+            }
+        });
+
+        undoBtn.addActionListener(e -> undoPipelineEdit());
+        redoBtn.addActionListener(e -> redoPipelineEdit());
+        undoBtn.setEnabled(false);
+        redoBtn.setEnabled(false);
 
         mgmt.add(moveUpBtn);
         mgmt.add(moveDownBtn);
         mgmt.add(removeBtn);
         mgmt.add(clearBtn);
+        mgmt.add(undoBtn);
+        mgmt.add(redoBtn);
         panel.add(mgmt, BorderLayout.SOUTH);
         return panel;
     }
 
     private JPanel buildActionBar() {
-        JPanel bar = new JPanel(new GridLayout(3, 1, 0, 4));
+        JPanel bar = new JPanel(new GridLayout(4, 1, 0, 4));
         bar.setBorder(BorderFactory.createEmptyBorder(6, 0, 0, 0));
 
         applyBtn = new JButton("▶   Apply steps  (preview result)");
@@ -322,9 +374,15 @@ class CleanPanel {
         exportBtn.setEnabled(false);
         exportBtn.addActionListener(e -> exportCleanedCsv());
 
+        copyTsvBtn = new JButton("Copy cleaned data as TSV");
+        copyTsvBtn.setEnabled(false);
+        copyTsvBtn.addActionListener(e -> copyCleanedTsvToClipboard());
+
+
         bar.add(applyBtn);
         bar.add(generateBtn);
         bar.add(exportBtn);
+        bar.add(copyTsvBtn);
         return bar;
     }
 
@@ -382,10 +440,10 @@ class CleanPanel {
         };
         if (step == null) return;
 
+        recordPipelineEdit();
         pendingSteps.add(step);
         stepListModel.addElement(describeStep(step));
-        updateButtonStates();
-        notifyStepCount();
+        pipelineChanged();
         onStatus.accept("Step added. Total: " + pendingSteps.size());
     }
 
@@ -446,8 +504,8 @@ class CleanPanel {
     }
 
     /**
-     * Writes {@code cleanedDataSet} to {@code <name>_cleaned.csv} alongside
-     * the source file. File I/O runs on a {@link SwingWorker} background thread.
+     * Prompts for a destination and writes {@code cleanedDataSet} as CSV.
+     * File I/O runs on a {@link SwingWorker} background thread.
      */
     private void exportCleanedCsv() {
         if (cleanedDataSet == null) {
@@ -458,20 +516,42 @@ class CleanPanel {
         String sourcePath = getSourcePath.get();
         if (sourcePath == null) return;
 
-        String csvPath = DataExporter.cleanedCsvPath(sourcePath);
+        String defaultPath = DataExporter.cleanedCsvPath(sourcePath);
+        Path defaultOutput = Paths.get(defaultPath);
+
+        FileSaverDescriptor descriptor = new FileSaverDescriptor(
+                "Export Cleaned CSV",
+                "Choose where to save the cleaned CSV file",
+                "csv"
+        );
+
+        FileSaverDialog dialog = FileChooserFactory.getInstance().createSaveFileDialog(descriptor, project);
+
+        VirtualFileWrapper selected = dialog.save(
+                LocalFileSystem.getInstance().findFileByNioFile(defaultOutput.getParent()),
+                defaultOutput.getFileName().toString()
+        );
+
+        if (selected == null) {
+            onStatus.accept("Export cancelled.");
+            return;
+        }
+
+        String finalCsvPath = selected.getFile().getAbsolutePath();
+
         int    rows    = cleanedDataSet.getRowCount();
         onStatus.accept("Exporting…");
 
         SwingWorker<Void, Void> worker = new SwingWorker<>() {
             @Override protected Void doInBackground() throws IOException {
-                new DataExporter().exportCsv(cleanedDataSet, csvPath);
-                LocalFileSystem.getInstance().refreshAndFindFileByPath(csvPath);
+                new DataExporter().exportCsv(cleanedDataSet, finalCsvPath);
+                LocalFileSystem.getInstance().refreshAndFindFileByPath(finalCsvPath);
                 return null;
             }
             @Override protected void done() {
                 try {
                     get();
-                    onStatus.accept("Exported " + rows + " rows → " + csvPath);
+                    onStatus.accept("Exported " + rows + " rows → " + finalCsvPath);
                 } catch (Exception ex) {
                     Messages.showErrorDialog(project,
                             "Could not export cleaned file:\n" + ex.getMessage(),
@@ -490,10 +570,65 @@ class CleanPanel {
         if (applyBtn    != null) applyBtn.setEnabled(hasSteps);
         if (generateBtn != null) generateBtn.setEnabled(hasSteps);
         if (exportBtn   != null) exportBtn.setEnabled(hasCleaned);
+        if (copyTsvBtn != null) copyTsvBtn.setEnabled(hasCleaned);
+        if (undoBtn     != null) undoBtn.setEnabled(!undoStack.isEmpty());
+        if (redoBtn     != null) redoBtn.setEnabled(!redoStack.isEmpty());
     }
 
     private void notifyStepCount() {
         if (onStepCountChanged != null) onStepCountChanged.accept(pendingSteps.size());
+    }
+
+    private void applyDefaultNormalizationSelection() {
+        String method = DataPreprocessorSettings.getInstance().getDefaultNormalizationMethod();
+        int index = switch (method) {
+            case DataPreprocessorSettings.NORMALIZATION_ZSCORE -> 8;
+            case DataPreprocessorSettings.NORMALIZATION_ROBUST -> 15;
+            case DataPreprocessorSettings.NORMALIZATION_MIN_MAX -> 7;
+            default -> 7;
+        };
+        opSelector.setSelectedIndex(index);
+    }
+
+    private void recordPipelineEdit() {
+        undoStack.add(new ArrayList<>(pendingSteps));
+        redoStack.clear();
+    }
+
+    private void pipelineChanged() {
+        cleanedDataSet = null;
+        updateButtonStates();
+        notifyStepCount();
+    }
+
+    private void undoPipelineEdit() {
+        if (undoStack.isEmpty()) return;
+
+        redoStack.add(new ArrayList<>(pendingSteps));
+        restorePipeline(undoStack.remove(undoStack.size() - 1));
+        pipelineChanged();
+        onStatus.accept("Undo complete. Total: " + pendingSteps.size());
+    }
+
+    private void redoPipelineEdit() {
+        if (redoStack.isEmpty()) return;
+
+        undoStack.add(new ArrayList<>(pendingSteps));
+        restorePipeline(redoStack.remove(redoStack.size() - 1));
+        pipelineChanged();
+        onStatus.accept("Redo complete. Total: " + pendingSteps.size());
+    }
+
+    private void restorePipeline(List<PreprocessingStep> steps) {
+        pendingSteps.clear();
+        pendingSteps.addAll(steps);
+        stepListModel.clear();
+        for (PreprocessingStep step : pendingSteps) {
+            stepListModel.addElement(describeStep(step));
+        }
+        if (!pendingSteps.isEmpty()) {
+            stepList.setSelectedIndex(Math.min(stepList.getSelectedIndex(), pendingSteps.size() - 1));
+        }
     }
 
     private String typeLabel(DataType dt) {
@@ -533,4 +668,54 @@ class CleanPanel {
             case NORMALIZE_ROBUST -> "Robust normalize" + col;
         };
     }
+
+    private String toTsv(DataSet ds) {
+        StringBuilder sb = new StringBuilder();
+
+        appendTsvRow(sb, ds.getHeaders());
+
+        for (int r = 0; r < ds.getRowCount(); r++) {
+            for (int c = 0; c < ds.getColumnCount(); c++) {
+                if (c > 0) sb.append('\t');
+                sb.append(escapeTsvValue(ds.getValue(r, c)));
+            }
+            sb.append('\n');
+        }
+
+        return sb.toString();
+    }
+
+    private void appendTsvRow(StringBuilder sb, List<String> values) {
+        for (int i = 0; i < values.size(); i++) {
+            if (i > 0) sb.append('\t');
+            sb.append(escapeTsvValue(values.get(i)));
+        }
+        sb.append('\n');
+    }
+
+    private String escapeTsvValue(String value) {
+        if (value == null) return "";
+        return value
+                .replace('\t', ' ')
+                .replace('\r', ' ')
+                .replace('\n', ' ');
+    }
+
+    private void copyCleanedTsvToClipboard() {
+        if (cleanedDataSet == null) {
+            onStatus.accept("Nothing to copy — run 'Apply steps' first.");
+            return;
+        }
+
+        String tsv = toTsv(cleanedDataSet);
+
+        Toolkit.getDefaultToolkit()
+                .getSystemClipboard()
+                .setContents(new StringSelection(tsv), null);
+
+        onStatus.accept("Copied " + cleanedDataSet.getRowCount() + " rows as TSV.");
+    }
+
+
+
 }
