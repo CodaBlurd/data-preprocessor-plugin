@@ -13,6 +13,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.ComboBox;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.vfs.LocalFileSystem;
+import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.fileChooser.FileChooserFactory;
 import com.intellij.openapi.fileChooser.FileSaverDescriptor;
 import com.intellij.openapi.fileChooser.FileSaverDialog;
@@ -544,10 +545,13 @@ class CleanPanel {
 
         FileSaverDialog dialog = FileChooserFactory.getInstance().createSaveFileDialog(descriptor, project);
 
-        VirtualFileWrapper selected = dialog.save(
-                LocalFileSystem.getInstance().findFileByNioFile(defaultOutput.getParent()),
-                defaultOutput.getFileName().toString()
-        );
+        // Refresh the parent dir into the VFS before opening the dialog so the
+        // dialog can navigate to it. refreshAndFindFileByPath is safer than
+        // findFileByNioFile because it forces a VFS refresh even for unindexed paths.
+        VirtualFile parentVf = LocalFileSystem.getInstance()
+                .refreshAndFindFileByNioFile(defaultOutput.getParent());
+
+        VirtualFileWrapper selected = dialog.save(parentVf, defaultOutput.getFileName().toString());
 
         if (selected == null) {
             onStatus.accept("Export cancelled.");
