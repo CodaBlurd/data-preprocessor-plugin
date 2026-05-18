@@ -45,9 +45,9 @@ patchPluginXml {
     changeNotes = """
         <ul>
           <li><b>1.5.1</b> — Replace deprecated FileSaverDescriptor varargs constructor with
-              the 2-argument form followed by withExtensionFilter() in both the Export CSV
-              and Save Script dialogs, eliminating binary compatibility warnings on
-              IntelliJ Platform 2025.1 through 2026.2 EAP.</li>
+              the 2-argument form in both the Export CSV and Save Script dialogs.
+              Default filenames already carry the correct extension so no filter is needed.
+              Eliminates binary compatibility warnings on IntelliJ Platform 2025.1–2026.2 EAP.</li>
           <li><b>1.5.0</b> — R code generation: one click produces a complete base-R script
               for all 16 operations; readxl / jsonlite / fastDummies imported only when needed.
               Fixed critical crash: DataPreprocessorSettings was not registered as an application

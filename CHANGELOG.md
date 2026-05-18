@@ -11,10 +11,10 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 - **Deprecated API** — replaced the `FileSaverDescriptor(title, description, extensions...)`
-  varargs constructor (deprecated in recent IntelliJ Platform builds) with the 2-argument
-  constructor followed by `withExtensionFilter()` in both the Export CSV dialog (`CleanPanel`)
-  and the Save Script dialog (`CodePanel`). Eliminates the two binary compatibility warnings
-  reported by the JetBrains plugin verifier across all supported IDE versions.
+  varargs constructor with the 2-argument form in both the Export CSV dialog (`CleanPanel`)
+  and the Save Script dialog (`CodePanel`). The default filename already carries the correct
+  extension (`.csv`, `.py`, or `.R`) so no extension filter is needed in the dialog.
+  Eliminates the two deprecated API usage warnings reported by the JetBrains plugin verifier.
 
 ---
 

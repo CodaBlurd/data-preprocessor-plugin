@@ -148,7 +148,6 @@ class CodePanel {
                 "Save Script",
                 "Choose where to save the generated script"
         );
-        descriptor.withExtensionFilter("py", "R");
 
         FileSaverDialog dialog = FileChooserFactory.getInstance().createSaveFileDialog(descriptor, project);
 

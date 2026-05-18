@@ -541,7 +541,6 @@ class CleanPanel {
                 "Export Cleaned CSV",
                 "Choose where to save the cleaned CSV file"
         );
-        descriptor.withExtensionFilter("csv");
 
         FileSaverDialog dialog = FileChooserFactory.getInstance().createSaveFileDialog(descriptor, project);
 
