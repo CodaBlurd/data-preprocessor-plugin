@@ -75,16 +75,27 @@ public class DataExporter {
     }
 
     /**
-     * Derives a Python script path from the original CSV path.
+     * Derives a Python script path from the original data file path.
      * e.g. {@code /data/employees.csv} → {@code /data/preprocess_employees.py}
      */
     public static String pythonScriptPath(String originalPath) {
         Path p    = Paths.get(originalPath);
         String name = p.getFileName().toString();
-        // strip extension
         int dot = name.lastIndexOf('.');
         String stem = (dot > 0) ? name.substring(0, dot) : name;
         return p.getParent().resolve("preprocess_" + stem + ".py").toString();
+    }
+
+    /**
+     * Derives an R script path from the original data file path.
+     * e.g. {@code /data/employees.csv} → {@code /data/preprocess_employees.R}
+     */
+    public static String rScriptPath(String originalPath) {
+        Path p    = Paths.get(originalPath);
+        String name = p.getFileName().toString();
+        int dot = name.lastIndexOf('.');
+        String stem = (dot > 0) ? name.substring(0, dot) : name;
+        return p.getParent().resolve("preprocess_" + stem + ".R").toString();
     }
 
     private static String insertSuffix(String path, String suffix) {

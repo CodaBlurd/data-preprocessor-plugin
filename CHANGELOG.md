@@ -7,6 +7,39 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.5.0] — 2026-05-18
+
+### Added
+- **R code generation** — "🔵 Generate R code" button produces a complete, ready-to-run R script
+  for all 16 pipeline operations. Uses base-R functions throughout; `library()` calls for
+  `readxl`, `jsonlite`, and `fastDummies` are emitted only when the script actually needs them
+  (Excel source, JSON source, and one-hot encode respectively). Column references use
+  back-tick quoting (`df$\`col\``) so column names with spaces or special characters are always
+  valid R identifiers.
+- **Save as script dialog accepts `.R` extension** — the "💾 Save as script…" button in the
+  Code tab now offers both `.py` and `.R` in the file-type filter, so R scripts are no longer
+  forced to save with a Python extension.
+
+### Fixed
+- **Critical: `DataPreprocessorSettings` not registered as an application service** — the
+  `@Service(Service.Level.APP)` annotation alone is not sufficient in the IntelliJ Platform;
+  `plugin.xml` must also declare an `<applicationService>` extension. Without it,
+  `ApplicationManager.getApplication().getService(DataPreprocessorSettings.class)` returned
+  `null`, causing a `NullPointerException` on every call to `DataPreprocessorSettings
+  .getInstance()`. This crashed `CleanPanel` on construction and the settings page on open.
+  Fixed by adding the missing `<applicationService>` entry to the `<extensions>` block.
+- **R code generation produced no status feedback** — clicking "Generate R code" was silent;
+  the status bar now shows "R code generated · N step(s)" after generation, matching the
+  Python button's behaviour.
+- **Save button labelled "Save as .py file" for R output** — renamed to "Save as script…"
+  and the `FileSaverDescriptor` now accepts both `py` and `R` extensions.
+
+### Changed
+- Plugin description updated to reflect R code generation, undo/redo, and expanded
+  normalization options.
+
+---
+
 ## [1.4.0] — 2026-05-09
 
 ### Added

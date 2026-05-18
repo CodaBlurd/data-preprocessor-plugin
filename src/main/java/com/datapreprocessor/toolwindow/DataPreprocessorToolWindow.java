@@ -81,6 +81,7 @@ public class DataPreprocessorToolWindow {
                 () -> currentDataSet,
                 this::onApplied,           // preview update after Apply
                 this::onCodeGenerated,     // code tab update after Generate
+                this::onRCodeGenerated,
                 this::getSourcePath,
                 this::setStatus,
                 this::onStepCountChanged); // tab badge update
@@ -261,7 +262,12 @@ public class DataPreprocessorToolWindow {
      * into the Code tab and jumps to it.
      */
     private void onCodeGenerated(String code) {
-        codePanel.setCode(code);
+        codePanel.setCode(code, "py");
+        tabs.setSelectedIndex(3); // jump to Generated Code tab
+    }
+
+    private void onRCodeGenerated(String code) {
+        codePanel.setCode(code, "R");
         tabs.setSelectedIndex(3); // jump to Generated Code tab
     }
 

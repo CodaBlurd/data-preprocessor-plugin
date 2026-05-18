@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>com.datapreprocessor.plugin</id>
     <name>Data Preprocessor</name>
-    <version>1.4.0</version>
+    <version>1.5.0</version>
     <vendor email="admin@keencodelabs.com" url="https://github.com/codaBlurd/data-preprocessor-plugin">
         Keen Code Labs
     </vendor>
@@ -13,7 +13,7 @@
         directly inside your JetBrains IDE.</p>
 
         <p>Load a <b>CSV, Excel (.xlsx), or JSON</b> file, profile your data instantly, handle missing values,
-        remove duplicates and outliers, normalize columns, and generate ready-to-run <b>Python (pandas)</b>
+        remove duplicates and outliers, normalize columns, and generate ready-to-run <b>Python (pandas) or R</b>
         code from your workflow — all without leaving the IDE.</p>
 
         <b>Key features:</b>
@@ -22,18 +22,19 @@
           <li><b>Missing Value Handling</b> — drop rows or fill with mean, median, mode, or a custom value</li>
           <li><b>Duplicate Removal</b> — detect and remove duplicate rows in one click</li>
           <li><b>Outlier Detection (IQR)</b> — identify and remove outliers using the IQR fence method</li>
-          <li><b>Data Normalization</b> — Min-Max scaling [0, 1] or Z-Score standardisation (mean=0, std=1)</li>
+          <li><b>Data Normalization</b> — Min-Max scaling [0, 1], Z-Score standardisation (mean=0, std=1), or Robust Scaler (median/IQR)</li>
           <li><b>Column Type Casting</b> — cast any column to int, float, boolean, or string</li>
           <li><b>Label Encoding</b> — encode categorical columns to integer indices</li>
           <li><b>One-Hot Encoding</b> — expand categorical columns into binary dummy columns</li>
-          <li><b>Train / Test Split</b> — split the dataset with a configurable ratio; generates sklearn code</li>
+          <li><b>Train / Test Split</b> — split the dataset with a configurable ratio; generates sklearn / base-R code</li>
           <li><b>Sort Column</b> — sort the dataset ascending or descending by any column (numeric or text)</li>
           <li><b>Filter Rows</b> — keep only rows matching a condition (==, !=, &gt;, &lt;, &gt;=, &lt;=, contains)</li>
-          <li><b>Robust Scaler</b> — outlier-resistant scaling using median and IQR: (x − median) / IQR</li>
-          <li><b>Pandas Code Generation</b> — one click produces a complete, ready-to-run pandas script</li>
-          <li><b>Export cleaned CSV</b> — choose where to save the transformed dataset</li>
+          <li><b>Python Code Generation</b> — one click produces a complete, ready-to-run pandas script</li>
+          <li><b>R Code Generation</b> — one click produces an equivalent base-R script; readxl / jsonlite / fastDummies imported only when needed</li>
+          <li><b>Undo / Redo</b> — step back and forward through pipeline edits without losing work</li>
+          <li><b>Export cleaned CSV</b> — choose where to save the transformed dataset via a file dialog</li>
           <li><b>Copy cleaned data as TSV</b> — paste applied results directly into Excel or Google Sheets</li>
-          <li><b>Settings</b> — configure preview row limit and default preprocessing options</li>
+          <li><b>Settings</b> — configure preview row limit, default normalization method, and default train/test ratio</li>
         </ul>
 
         <p>Built for <b>data scientists, analysts, and developers</b> who want faster preprocessing
@@ -59,6 +60,9 @@
         <notificationGroup
                 id="DataPreprocessor.Notifications"
                 displayType="BALLOON"/>
+
+        <applicationService
+                serviceImplementation="com.datapreprocessor.settings.DataPreprocessorSettings"/>
 
         <applicationConfigurable
                 parentId="tools"

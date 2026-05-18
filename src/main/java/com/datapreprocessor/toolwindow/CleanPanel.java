@@ -54,6 +54,7 @@ class CleanPanel {
     private final Supplier<DataSet>  getDataSet;
     private final Consumer<DataSet>  onApplied;
     private final Consumer<String>   onCodeGenerated;
+    private final Consumer<String>   onCodeGeneratedR;
     private final Supplier<String>   getSourcePath;
     private final Consumer<String>   onStatus;
     private final Consumer<Integer>  onStepCountChanged;
@@ -102,6 +103,7 @@ class CleanPanel {
     // Kept as fields so they can be enabled / disabled dynamically
     private JButton applyBtn;
     private JButton generateBtn;
+    private JButton generateRBtn;
     private JButton exportBtn;
     private JButton undoBtn;
     private JButton redoBtn;
@@ -114,6 +116,7 @@ class CleanPanel {
                Supplier<DataSet>  getDataSet,
                Consumer<DataSet>  onApplied,
                Consumer<String>   onCodeGenerated,
+               Consumer<String>   onCodeGeneratedR,
                Supplier<String>   getSourcePath,
                Consumer<String>   onStatus,
                Consumer<Integer>  onStepCountChanged) {
@@ -121,6 +124,7 @@ class CleanPanel {
         this.getDataSet          = getDataSet;
         this.onApplied           = onApplied;
         this.onCodeGenerated     = onCodeGenerated;
+        this.onCodeGeneratedR    = onCodeGeneratedR;
         this.getSourcePath       = getSourcePath;
         this.onStatus            = onStatus;
         this.onStepCountChanged  = onStepCountChanged;
@@ -355,7 +359,7 @@ class CleanPanel {
     }
 
     private JPanel buildActionBar() {
-        JPanel bar = new JPanel(new GridLayout(4, 1, 0, 4));
+        JPanel bar = new JPanel(new GridLayout(5, 1, 0, 4));
         bar.setBorder(BorderFactory.createEmptyBorder(6, 0, 0, 0));
 
         applyBtn = new JButton("▶   Apply steps  (preview result)");
@@ -370,6 +374,10 @@ class CleanPanel {
         generateBtn.setEnabled(false);
         generateBtn.addActionListener(e -> generateCode());
 
+        generateRBtn = new JButton("R  Generate R code");
+        generateRBtn.setEnabled(false);
+        generateRBtn.addActionListener(e -> generateRCode());
+
         exportBtn = new JButton("📤  Export cleaned CSV to disk");
         exportBtn.setEnabled(false);
         exportBtn.addActionListener(e -> exportCleanedCsv());
@@ -381,6 +389,7 @@ class CleanPanel {
 
         bar.add(applyBtn);
         bar.add(generateBtn);
+        bar.add(generateRBtn);
         bar.add(exportBtn);
         bar.add(copyTsvBtn);
         return bar;
@@ -503,6 +512,15 @@ class CleanPanel {
         onStatus.accept("Python code generated  ·  " + pendingSteps.size() + " step(s)");
     }
 
+    private void generateRCode() {
+        DataSet ds = getDataSet.get();
+        if (ds == null)             { onStatus.accept("Load a dataset first."); return; }
+        if (pendingSteps.isEmpty()) { onStatus.accept("No steps to generate code for."); return; }
+        String code = new CodeGenerator().generateR(getSourcePath.get(), pendingSteps);
+        onCodeGeneratedR.accept(code);
+        onStatus.accept("R code generated  ·  " + pendingSteps.size() + " step(s)");
+    }
+
     /**
      * Prompts for a destination and writes {@code cleanedDataSet} as CSV.
      * File I/O runs on a {@link SwingWorker} background thread.
@@ -569,11 +587,14 @@ class CleanPanel {
         boolean hasCleaned = cleanedDataSet != null;
         if (applyBtn    != null) applyBtn.setEnabled(hasSteps);
         if (generateBtn != null) generateBtn.setEnabled(hasSteps);
+        if (generateRBtn != null) generateRBtn.setEnabled(hasSteps);
         if (exportBtn   != null) exportBtn.setEnabled(hasCleaned);
         if (copyTsvBtn != null) copyTsvBtn.setEnabled(hasCleaned);
         if (undoBtn     != null) undoBtn.setEnabled(!undoStack.isEmpty());
         if (redoBtn     != null) redoBtn.setEnabled(!redoStack.isEmpty());
     }
+
+
 
     private void notifyStepCount() {
         if (onStepCountChanged != null) onStepCountChanged.accept(pendingSteps.size());

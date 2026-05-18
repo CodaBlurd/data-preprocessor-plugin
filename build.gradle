@@ -44,6 +44,12 @@ patchPluginXml {
     untilBuild = ""
     changeNotes = """
         <ul>
+          <li><b>1.5.0</b> — R code generation: one click produces a complete base-R script
+              for all 16 operations; readxl / jsonlite / fastDummies imported only when needed.
+              Fixed critical crash: DataPreprocessorSettings was not registered as an application
+              service, causing a NullPointerException on startup and when opening the settings page.
+              Save button in the Code tab now accepts both .py and .R extensions. Status message
+              added after R code generation.</li>
           <li><b>1.4.0</b> — Settings page under Tools → Data Preprocessor for
               preview row limit, default normalization method, and default train/test
               ratio. Added undo/redo for pipeline edits, copy cleaned data as TSV for

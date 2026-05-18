@@ -48,6 +48,9 @@ class CodePanel {
 
     private final JTextArea codeArea = new JTextArea();
 
+    /** "py" or "R" — tracks which language was last pushed into the code area. */
+    private String currentLanguage = "py";
+
     CodePanel(Project project, Supplier<String> getSourcePath, Consumer<String> onStatus) {
         this.project       = project;
         this.getSourcePath = getSourcePath;
@@ -59,8 +62,8 @@ class CodePanel {
         JPanel panel   = new JPanel(new BorderLayout(0, 4));
         JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 4));
 
-        JButton saveBtn = new JButton("💾 Save as .py file");
-        saveBtn.addActionListener(e -> saveAsPythonFile());
+        JButton saveBtn = new JButton("💾 Save as script…");
+        saveBtn.addActionListener(e -> saveAsScriptFile());
 
         JButton copyBtn = new JButton("Copy to clipboard");
         copyBtn.addActionListener(e -> {
@@ -79,15 +82,23 @@ class CodePanel {
 
     // ── Public API ────────────────────────────────────────────────────────────
 
-    /** Replaces the code area content with the generated script. */
-    void setCode(String code) {
+    /**
+     * Replaces the code area content with the generated script.
+     *
+     * @param code     the generated source code
+     * @param language {@code "py"} for Python, {@code "R"} for R — used to
+     *                 derive the correct default filename in the save dialog
+     */
+    void setCode(String code, String language) {
         codeArea.setText(code);
         codeArea.setCaretPosition(0);
+        currentLanguage = (language != null) ? language : "py";
     }
 
-    /** Resets the code area to the placeholder text. */
+    /** Resets the code area to the placeholder text and clears the language state. */
     void clear() {
         codeArea.setText(PLACEHOLDER);
+        currentLanguage = "py";
     }
 
     /** Returns the current content of the code area. */
@@ -110,29 +121,33 @@ class CodePanel {
 
     /**
      * Prompts for a destination, writes the generated script, then opens it in
-     * the IDE editor.
+     * the IDE editor. Accepts both {@code .py} and {@code .R} extensions so the
+     * dialog works correctly whether Python or R code was last generated.
      *
      * <p>File I/O and VFS refresh run on a {@link SwingWorker} background
      * thread. {@code FileEditorManager.openFile()} is deferred via
      * {@code invokeLater} to satisfy IntelliJ's write-safe context requirement.</p>
      */
-    private void saveAsPythonFile() {
+    private void saveAsScriptFile() {
         String code = codeArea.getText();
         if (code.isBlank() || code.equals(PLACEHOLDER)) {
-            onStatus.accept("Nothing to save — run 'Apply & Generate Code' first.");
+            onStatus.accept("Nothing to save — generate code first.");
             return;
         }
 
         String sourcePath = getSourcePath.get();
         if (sourcePath == null) return;
 
-        String defaultPath = DataExporter.pythonScriptPath(sourcePath);
+        // Default filename matches the language last generated (.py or .R)
+        String defaultPath = "R".equals(currentLanguage)
+                ? DataExporter.rScriptPath(sourcePath)
+                : DataExporter.pythonScriptPath(sourcePath);
         Path defaultOutput = Paths.get(defaultPath);
 
         FileSaverDescriptor descriptor = new FileSaverDescriptor(
-                "Save Python Script",
-                "Choose where to save the generated Python script",
-                "py"
+                "Save Script",
+                "Choose where to save the generated script",
+                "py", "R"
         );
 
         FileSaverDialog dialog = FileChooserFactory.getInstance().createSaveFileDialog(descriptor, project);
