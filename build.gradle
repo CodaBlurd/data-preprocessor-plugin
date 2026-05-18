@@ -44,6 +44,14 @@ patchPluginXml {
     untilBuild = ""
     changeNotes = """
         <ul>
+          <li><b>1.5.3</b> — Fixed Browse button freezing on IntelliJ Platform 2024.2 and
+              later: wrapped FileChooser.chooseFiles in ApplicationManager.invokeLater so
+              the file picker is dispatched on a fresh EDT call rather than blocking the
+              ActionListener's synchronous EDT frame.</li>
+          <li><b>1.5.2</b> — Fixed broken file save dialogs: switched from findFileByNioFile
+              (which silently returned null for unindexed paths) to refreshAndFindFileByNioFile
+              so the Export CSV and Save Script dialogs open reliably on first use.
+              Renamed internal variable pyPath to scriptPath in CodePanel.</li>
           <li><b>1.5.1</b> — Replace deprecated FileSaverDescriptor varargs constructor with
               the 2-argument form in both the Export CSV and Save Script dialogs.
               Default filenames already carry the correct extension so no filter is needed.

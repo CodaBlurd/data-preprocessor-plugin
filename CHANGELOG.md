@@ -7,6 +7,30 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.5.3] — 2026-05-18
+
+### Fixed
+- **Browse button freezes on IntelliJ Platform 2024.2+** — `FileChooser.chooseFiles`
+  was being called directly from a Swing `ActionListener` on the EDT. From Platform
+  2024.2 onwards the file picker dispatches internally on its own dispatcher and blocks
+  waiting for the EDT to be free — deadlocking with the calling frame. Fixed by wrapping
+  the call in `ApplicationManager.getApplication().invokeLater()` so the file chooser
+  opens on a fresh EDT dispatch after the ActionListener returns.
+
+---
+
+## [1.5.2] — 2026-05-18
+
+### Fixed
+- **File save dialogs broken** — both the Export CSV dialog (`CleanPanel`) and the Save
+  Script dialog (`CodePanel`) used `findFileByNioFile()` to resolve the parent directory
+  before opening the dialog. This method returns `null` for paths not yet indexed in the
+  IntelliJ VFS, causing the dialog to malfunction on first use or for files outside the
+  open project. Replaced with `refreshAndFindFileByNioFile()` which forces a VFS refresh
+  and reliably returns the directory on all supported IDE versions.
+
+---
+
 ## [1.5.1] — 2026-05-18
 
 ### Fixed

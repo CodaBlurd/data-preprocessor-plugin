@@ -5,6 +5,7 @@ import com.datapreprocessor.engine.DataCleaner;
 import com.datapreprocessor.engine.DataLoader;
 import com.datapreprocessor.model.ColumnProfile;
 import com.datapreprocessor.model.DataSet;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.fileChooser.FileChooser;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
 import com.intellij.openapi.project.Project;
@@ -177,8 +178,13 @@ public class DataPreprocessorToolWindow {
                         .withTitle("Open Data File")
                         .withDescription("Select a CSV, Excel, or JSON file");
 
-        // chooseFiles (async) avoids EDT-blocking VFS refresh on macOS
-        FileChooser.chooseFiles(descriptor, project, null, files -> {
+        // invokeLater ensures the file chooser is shown on a fresh EDT dispatch.
+        // Calling FileChooser.chooseFiles directly from a Swing ActionListener
+        // causes a deadlock on IntelliJ Platform 2024.2+ because the platform
+        // now dispatches the file picker on its own internal dispatcher, which
+        // blocks waiting for the EDT — the same thread that called it.
+        ApplicationManager.getApplication().invokeLater(() ->
+                FileChooser.chooseFiles(descriptor, project, null, files -> {
             if (files.isEmpty()) return;
             VirtualFile file = files.get(0);
             SwingWorker<DataSet, Void> worker = new SwingWorker<>() {
@@ -196,7 +202,7 @@ public class DataPreprocessorToolWindow {
                 }
             };
             worker.execute();
-        });
+        }));
     }
 
     private void reloadCurrentFile() {
