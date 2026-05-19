@@ -7,6 +7,28 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.5.6] — 2026-05-19
+
+### Changed
+- **Minimum supported IDE bumped from IntelliJ 2023.3 (build 233) to 2024.3
+  (build 243).** The plugin is compiled against the 2024.3 SDK and references
+  APIs introduced after 2023.3 (notably the 2-argument `FileSaverDescriptor`
+  constructor added in 1.5.1). Tightening `pluginSinceBuild=243` matches what
+  the plugin is actually built against, silences the
+  `verifyPluginConfiguration` "since-build is lower than the target IntelliJ
+  Platform major version" warning, and prevents `NoSuchMethodError` crashes
+  on 2023.x IDEs. The upper bound remains unset, so the plugin stays
+  compatible with all 2024.3+ builds (including future releases).
+
+### Build
+- Added `systemProp.org.jetbrains.intellij.buildFeature.selfUpdateCheck=false`
+  to `gradle.properties` so the Gradle IntelliJ Plugin's GitHub self-update
+  check no longer aborts the entire build when GitHub's API is unreachable,
+  rate-limited, or proxied. The check is informational only and has no effect
+  on the produced artifact.
+
+---
+
 ## [1.5.5] — 2026-05-18
 
 ### Fixed

@@ -44,6 +44,16 @@ patchPluginXml {
     untilBuild = ""
     changeNotes = """
         <ul>
+          <li><b>1.5.6</b> — Compatibility: minimum supported IDE bumped from
+              IntelliJ 2023.3 (build 233) to 2024.3 (build 243). The plugin is
+              compiled against the 2024.3 SDK and uses APIs introduced after
+              2023.3 (notably the 2-argument FileSaverDescriptor constructor),
+              so tightening sinceBuild=243 prevents NoSuchMethodError crashes
+              on 2023.x IDEs. Upper bound remains unset — the plugin stays
+              forward-compatible with all future IDE builds. Build-only: the
+              Gradle IntelliJ Plugin self-update check is now disabled in
+              gradle.properties so a transient GitHub API failure no longer
+              breaks the build.</li>
           <li><b>1.5.5</b> — Bug fixes: Browse now uses IntelliJ's built-in single-file
               chooser, keeps directories visible in the filter for normal navigation,
               and anchors the dialog to the tool window component while preserving the
