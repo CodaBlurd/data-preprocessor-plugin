@@ -44,10 +44,23 @@ patchPluginXml {
     untilBuild = ""
     changeNotes = """
         <ul>
-          <li><b>1.5.3</b> — Fixed Browse button freezing on IntelliJ Platform 2024.2 and
-              later: wrapped FileChooser.chooseFiles in ApplicationManager.invokeLater so
-              the file picker is dispatched on a fresh EDT call rather than blocking the
-              ActionListener's synchronous EDT frame.</li>
+          <li><b>1.5.5</b> — Bug fixes: Browse now uses IntelliJ's built-in single-file
+              chooser, keeps directories visible in the filter for normal navigation,
+              and anchors the dialog to the tool window component while preserving the
+              1.5.4 no-invokeLater freeze fix. Generated Robust Scaler Python/R code now
+              guards against IQR=0 (prevented silent NaN/Inf, matching Java preview behaviour).
+              Generated R Label Encode is now 0-based (matching pandas factorize and the
+              Java preview; previously was 1-based due to R's factor() convention).
+              Save-script error dialog no longer says "Python file" when saving R output.
+              R button label updated to blue circle emoji. R codegen source path now uses
+              ds.getFilePath() consistently with the Python codegen path.</li>
+          <li><b>1.5.4</b> — Reverted erroneous ApplicationManager.invokeLater wrapper
+              around FileChooser.chooseFiles that was introduced in 1.5.3. The wrapper
+              created a modal-dialog / EDT deadlock that froze the entire IDE on any version
+              with the plugin installed. FileChooser.chooseFiles is already asynchronous and
+              must be called directly from the EDT — no wrapper is needed or safe.</li>
+          <li><b>1.5.3</b> — (Retracted) Attempted Browse-button fix via invokeLater —
+              caused IDE-wide freeze. Superseded by 1.5.4.</li>
           <li><b>1.5.2</b> — Fixed broken file save dialogs: switched from findFileByNioFile
               (which silently returned null for unindexed paths) to refreshAndFindFileByNioFile
               so the Export CSV and Save Script dialogs open reliably on first use.
@@ -112,9 +125,9 @@ publishPlugin {
     token = System.getenv("PUBLISH_TOKEN")
 }
 
-// buildSearchableOptions launches a headless IDE to index plugin settings for
-// the Settings search bar. Our plugin has no settings pages, so this task is
-// unnecessary and is disabled to avoid headless-display failures on macOS.
+// buildSearchableOptions launches a headless IDE to index settings-search metadata.
+// The plugin has a small settings page, but searchable options are not required for
+// release and this task is disabled to avoid headless-display failures on macOS.
 tasks.named('buildSearchableOptions') {
     enabled = false
 }

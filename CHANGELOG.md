@@ -7,15 +7,53 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-## [1.5.3] — 2026-05-18
+## [1.5.5] — 2026-05-18
 
 ### Fixed
-- **Browse button freezes on IntelliJ Platform 2024.2+** — `FileChooser.chooseFiles`
-  was being called directly from a Swing `ActionListener` on the EDT. From Platform
-  2024.2 onwards the file picker dispatches internally on its own dispatcher and blocks
-  waiting for the EDT to be free — deadlocking with the calling frame. Fixed by wrapping
-  the call in `ApplicationManager.getApplication().invokeLater()` so the file chooser
-  opens on a fresh EDT dispatch after the ActionListener returns.
+- **Browse file chooser still froze or failed to navigate reliably** — switched the
+  Browse action to IntelliJ's built-in single-file chooser, kept directories visible
+  in the file filter so users can navigate normally, and anchored the dialog to the
+  tool window component. This keeps the 1.5.4 no-`invokeLater` fix while avoiding
+  native chooser hangs.
+- **Generated Python/R `Normalize: Robust Scaler` — silent NaN/Inf when IQR = 0** —
+  The Java preview already guarded against IQR = 0 (returns column unchanged), but the
+  generated Python and R code did not. Python would silently produce `NaN` values;
+  R would produce `Inf`. Added an explicit `if _iqr != 0:` / `if (.iqr != 0)` guard in
+  both generated scripts so they match the Java preview behaviour.
+- **Generated R `Label Encode` produced 1-based integers** — `as.integer(factor(x))`
+  in R is 1-based (`[1,2,3,…]`), but the Java preview and generated Python both use
+  0-based encoding (`[0,1,2,…]`). Fixed by using `factor(x, levels = unique(x)) - 1L`
+  in the generated R code to match the other two outputs exactly.
+- **Save dialog error message said "Could not save Python file" for R scripts** —
+  Updated error message in `CodePanel` to "Could not save script file" regardless of
+  language.
+- **R button label was plain text `"R  Generate R code"`** — updated to
+  `"🔵  Generate R code"` to match the changelog description and align visually with
+  the Python button.
+- **R code generation used `getSourcePath.get()` while Python used `ds.getFilePath()`** —
+  Inconsistency: both now use `ds.getFilePath()` directly, which is the safe reference
+  already null-checked earlier in the method.
+
+---
+
+## [1.5.4] — 2026-05-18
+
+### Fixed
+- **IDE-wide freeze introduced in 1.5.3** — the `ApplicationManager.invokeLater()`
+  wrapper added around `FileChooser.chooseFiles` in 1.5.3 created a modal-dialog /
+  EDT deadlock: the modal file picker blocks the EDT pump while waiting to dispatch,
+  but the `invokeLater` runnable is itself queued behind the EDT pump — so neither
+  side ever makes progress, and the entire IDE freezes. Reverted to the direct call.
+  `FileChooser.chooseFiles` is already asynchronous; its callback fires on the EDT
+  after the user picks a file and no wrapper is needed or safe.
+
+---
+
+## [1.5.3] — 2026-05-18 *(retracted — caused IDE freeze, superseded by 1.5.4)*
+
+### Fixed
+- ~~Browse button freezes on IntelliJ Platform 2024.2+~~ — the `invokeLater` fix
+  introduced a modal-dialog deadlock that froze the IDE. See 1.5.4.
 
 ---
 

@@ -151,31 +151,31 @@ class CodePanel {
 
         FileSaverDialog dialog = FileChooserFactory.getInstance().createSaveFileDialog(descriptor, project);
 
-        VirtualFileWrapper selected = dialog.save(
-                LocalFileSystem.getInstance().findFileByNioFile(defaultOutput.getParent()),
-                defaultOutput.getFileName().toString()
-        );
+        VirtualFile parentVf = LocalFileSystem.getInstance()
+                .refreshAndFindFileByNioFile(defaultOutput.getParent());
+
+        VirtualFileWrapper selected = dialog.save(parentVf, defaultOutput.getFileName().toString());
 
         if (selected == null) {
             onStatus.accept("Save cancelled.");
             return;
         }
 
-        String pyPath = selected.getFile().getAbsolutePath();
+        String scriptPath = selected.getFile().getAbsolutePath();
         onStatus.accept("Saving…");
 
         SwingWorker<VirtualFile, Void> worker = new SwingWorker<>() {
             @Override
             protected VirtualFile doInBackground() throws IOException {
-                new DataExporter().exportPythonScript(code, pyPath);
-                return LocalFileSystem.getInstance().refreshAndFindFileByPath(pyPath);
+                new DataExporter().exportPythonScript(code, scriptPath);
+                return LocalFileSystem.getInstance().refreshAndFindFileByPath(scriptPath);
             }
 
             @Override
             protected void done() {
                 try {
                     VirtualFile vf = get();
-                    onStatus.accept("Saved: " + pyPath);
+                    onStatus.accept("Saved: " + scriptPath);
                     if (vf != null) {
                         // invokeLater: FileEditorManager requires a write-safe context
                         ApplicationManager.getApplication().invokeLater(
@@ -183,7 +183,7 @@ class CodePanel {
                     }
                 } catch (Exception ex) {
                     Messages.showErrorDialog(project,
-                            "Could not save Python file:\n" + ex.getMessage(),
+                            "Could not save script file:\n" + ex.getMessage(),
                             "Data Preprocessor");
                 }
             }

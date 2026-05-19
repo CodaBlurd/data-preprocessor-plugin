@@ -375,7 +375,7 @@ class CleanPanel {
         generateBtn.setEnabled(false);
         generateBtn.addActionListener(e -> generateCode());
 
-        generateRBtn = new JButton("R  Generate R code");
+        generateRBtn = new JButton("🔵  Generate R code");
         generateRBtn.setEnabled(false);
         generateRBtn.addActionListener(e -> generateRCode());
 
@@ -517,7 +517,7 @@ class CleanPanel {
         DataSet ds = getDataSet.get();
         if (ds == null)             { onStatus.accept("Load a dataset first."); return; }
         if (pendingSteps.isEmpty()) { onStatus.accept("No steps to generate code for."); return; }
-        String code = new CodeGenerator().generateR(getSourcePath.get(), pendingSteps);
+        String code = new CodeGenerator().generateR(ds.getFilePath(), pendingSteps);
         onCodeGeneratedR.accept(code);
         onStatus.accept("R code generated  ·  " + pendingSteps.size() + " step(s)");
     }

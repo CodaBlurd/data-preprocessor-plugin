@@ -328,7 +328,9 @@ public class CodeGenerator {
                             "# Robust scale %s using median and IQR (resistant to outliers)\n" +
                                     "_med = df[%s].median()\n" +
                                     "_iqr = df[%s].quantile(0.75) - df[%s].quantile(0.25)\n" +
-                                    "df[%s] = (df[%s] - _med) / _iqr",
+                                    "if _iqr != 0:\n" +
+                                    "    df[%s] = (df[%s] - _med) / _iqr\n" +
+                                    "# else: all values in same IQR band — column left unchanged",
                             col, col, col, col, col, col);
         };
     }
@@ -445,9 +447,9 @@ public class CodeGenerator {
 
             case LABEL_ENCODE ->
                 String.format(
-                    "# Label encode %s (each unique value → integer)\n" +
-                    "%s <- as.integer(factor(%s))",
-                    col, colRef, colRef);
+                    "# Label encode %s (each unique value → 0-based integer, matching pandas factorize)\n" +
+                    "%s <- as.integer(factor(%s, levels = unique(%s))) - 1L",
+                    col, colRef, colRef, colRef);
 
             case ONE_HOT_ENCODE ->
                 String.format(
@@ -490,7 +492,8 @@ public class CodeGenerator {
                     "# Robust scale %s using median and IQR (resistant to outliers)\n" +
                     ".med <- median(%s, na.rm = TRUE)\n" +
                     ".iqr <- IQR(%s, na.rm = TRUE)\n" +
-                    "%s <- (%s - .med) / .iqr",
+                    "if (.iqr != 0) { %s <- (%s - .med) / .iqr }" +
+                    "  # else: all values in same IQR band — column left unchanged",
                     col, colRef, colRef, colRef, colRef);
         };
     }

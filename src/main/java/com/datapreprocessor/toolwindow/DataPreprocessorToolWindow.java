@@ -5,9 +5,9 @@ import com.datapreprocessor.engine.DataCleaner;
 import com.datapreprocessor.engine.DataLoader;
 import com.datapreprocessor.model.ColumnProfile;
 import com.datapreprocessor.model.DataSet;
-import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.fileChooser.FileChooser;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
+import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -168,8 +168,9 @@ public class DataPreprocessorToolWindow {
 
     private void browseAndLoad() {
         FileChooserDescriptor descriptor =
-                new FileChooserDescriptor(true, false, false, false, false, false)
+                FileChooserDescriptorFactory.createSingleFileDescriptor()
                         .withFileFilter(f -> {
+                            if (f.isDirectory()) return true;
                             String ext = f.getExtension();
                             return "csv".equalsIgnoreCase(ext)
                                     || "xlsx".equalsIgnoreCase(ext)
@@ -177,16 +178,10 @@ public class DataPreprocessorToolWindow {
                         })
                         .withTitle("Open Data File")
                         .withDescription("Select a CSV, Excel, or JSON file");
+        descriptor.setForcedToUseIdeaFileChooser(true);
 
-        // invokeLater ensures the file chooser is shown on a fresh EDT dispatch.
-        // Calling FileChooser.chooseFiles directly from a Swing ActionListener
-        // causes a deadlock on IntelliJ Platform 2024.2+ because the platform
-        // now dispatches the file picker on its own internal dispatcher, which
-        // blocks waiting for the EDT — the same thread that called it.
-        ApplicationManager.getApplication().invokeLater(() ->
-                FileChooser.chooseFiles(descriptor, project, null, files -> {
-            if (files.isEmpty()) return;
-            VirtualFile file = files.get(0);
+        FileChooser.chooseFile(descriptor, project, root, null, file -> {
+            if (file == null) return;
             SwingWorker<DataSet, Void> worker = new SwingWorker<>() {
                 @Override protected DataSet doInBackground() throws IOException {
                     return new DataLoader().load(file.getPath());
@@ -202,7 +197,7 @@ public class DataPreprocessorToolWindow {
                 }
             };
             worker.execute();
-        }));
+        });
     }
 
     private void reloadCurrentFile() {

@@ -16,6 +16,7 @@ out/
 # Generated plugin outputs (produced by the plugin at runtime, not source)
 *_cleaned.csv
 preprocess_*.py
+preprocess_*.R
 
 # Business / planning documents — store in preprocessor-docs on Desktop, not in repo
 *.docx
@@ -24,3 +25,6 @@ preprocess_*.py
 # Screenshot / announcement generation scripts (build tooling, not plugin source)
 gen_screenshots.py
 build_*.py
+
+# One-off repo bootstrap script (kept locally, not in source)
+setup-github-project.sh

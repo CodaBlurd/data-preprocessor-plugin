@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>com.datapreprocessor.plugin</id>
     <name>Data Preprocessor</name>
-    <version>1.5.3</version>
+    <version>1.5.5</version>
     <vendor email="admin@keencodelabs.com" url="https://github.com/codaBlurd/data-preprocessor-plugin">
         Keen Code Labs
     </vendor>
@@ -91,9 +91,9 @@
         <group id="DataPreprocessor.ToolsMenu">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
             <action id="DataPreprocessor.OpenTool"
-                    class="com.datapreprocessor.actions.OpenDataFileAction"
+                    class="com.datapreprocessor.actions.OpenToolWindowAction"
                     text="Open Data Preprocessor…"
-                    description="Open a data file in the Data Preprocessor"/>
+                    description="Open the Data Preprocessor tool window"/>
         </group>
     </actions>
 </idea-plugin>
