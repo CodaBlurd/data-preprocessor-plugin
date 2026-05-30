@@ -27,9 +27,9 @@ import java.util.List;
  * <h3>Responsibilities</h3>
  * <ul>
  *   <li>Holds all shared state ({@code currentDataSet}, {@code columnProfiles}).</li>
- *   <li>Constructs and wires the five child panels via constructor callbacks.</li>
- *   <li>Orchestrates cross-panel updates (e.g. after Apply, tells PreviewPanel
- *       and CodePanel to refresh).</li>
+ *   <li>Constructs and wires the six child panels via constructor callbacks.</li>
+ *   <li>Orchestrates cross-panel updates (e.g. after Apply, tells PreviewPanel,
+ *       and VisualisationPanel to refresh).</li>
  *   <li>Owns file-browse and reload I/O (both run on a {@link SwingWorker}).</li>
  * </ul>
  *
@@ -42,6 +42,7 @@ import java.util.List;
  * │  Tab 2 — ProfilePanel                        │
  * │  Tab 3 — CleanPanel                          │
  * │  Tab 4 — CodePanel                           │
+ * │  Tab 5 — VisualisationPanel                  │
  * ├──────────────────────────────────────────────┤
  * │  Status bar                                  │
  * └──────────────────────────────────────────────┘
@@ -61,6 +62,7 @@ public class DataPreprocessorToolWindow {
     private final ProfilePanel   profilePanel;
     private final CleanPanel     cleanPanel;
     private final CodePanel      codePanel;
+    private final VisualisationPanel visualisationPanel;
 
     // ── Root UI ───────────────────────────────────────────────────────────────
     private final JPanel        root       = new JPanel(new BorderLayout());
@@ -86,6 +88,8 @@ public class DataPreprocessorToolWindow {
                 this::getSourcePath,
                 this::setStatus,
                 this::onStepCountChanged); // tab badge update
+
+        visualisationPanel = new VisualisationPanel();
 
         buildUi();
     }
@@ -114,6 +118,7 @@ public class DataPreprocessorToolWindow {
 
         previewPanel.showData(ds);
         profilePanel.refresh(columnProfiles);
+        visualisationPanel.onDataSetLoaded(ds, columnProfiles);
         cleanPanel.clearPipeline();
         cleanPanel.onDataSetLoaded(ds, columnProfiles);
         codePanel.clear();
@@ -148,6 +153,7 @@ public class DataPreprocessorToolWindow {
         tabs.addTab("📋 Column Profiles",   profilePanel.getContent());
         tabs.addTab("🧹 Clean & Transform", cleanContent);
         tabs.addTab("🐍 Generated Code",    codePanel.getContent());
+        tabs.addTab("📈 Visualise", visualisationPanel.getContent());
         tabs.addChangeListener(e -> {
             if (tabs.getSelectedComponent() == cleanContent) {
                 cleanPanel.refreshSettingsDefaults();
@@ -200,6 +206,9 @@ public class DataPreprocessorToolWindow {
         });
     }
 
+    /** Pairs a freshly loaded dataset with its pre-computed column profiles. */
+    private record ReloadResult(DataSet dataSet, List<ColumnProfile> profiles) {}
+
     private void reloadCurrentFile() {
         if (currentDataSet == null || currentDataSet.getFilePath() == null) {
             browseAndLoad();
@@ -209,15 +218,19 @@ public class DataPreprocessorToolWindow {
         setStatus("Reloading…");
         headerBar.setReloadEnabled(false);
 
-        SwingWorker<DataSet, Void> worker = new SwingWorker<>() {
-            @Override protected DataSet doInBackground() throws IOException {
-                return new DataLoader().load(path); // format-aware dispatch
+        SwingWorker<ReloadResult, Void> worker = new SwingWorker<>() {
+            @Override protected ReloadResult doInBackground() throws IOException {
+                // Both file I/O and column profiling are O(n) — keep both off the EDT.
+                DataSet fresh = new DataLoader().load(path);
+                List<ColumnProfile> profiles = new DataCleaner().profileColumns(fresh);
+                return new ReloadResult(fresh, profiles);
             }
             @Override protected void done() {
                 try {
-                    DataSet fresh = get();
+                    ReloadResult result = get();
+                    DataSet fresh = result.dataSet();
                     currentDataSet = fresh;
-                    columnProfiles = new DataCleaner().profileColumns(fresh);
+                    columnProfiles = result.profiles();
 
                     String reloadedName = new java.io.File(fresh.getFilePath()).getName();
                     String ext          = reloadedName.contains(".")
@@ -228,6 +241,7 @@ public class DataPreprocessorToolWindow {
 
                     previewPanel.showData(fresh);
                     profilePanel.refresh(columnProfiles);
+                    visualisationPanel.onDataSetLoaded(fresh, columnProfiles);
                     cleanPanel.onDataSetLoaded(fresh, columnProfiles);
                     // Pipeline steps intentionally preserved across reload
 
@@ -250,12 +264,26 @@ public class DataPreprocessorToolWindow {
     // =========================================================================
 
     /**
-     * Called by {@link CleanPanel} after Apply — updates the Preview tab only
-     * and jumps to it so the user can inspect the transformed data immediately.
+     * Called by {@link CleanPanel} after Apply — updates the Preview tab and
+     * jumps to it so the user can inspect the transformed data immediately.
+     *
+     * <p>Re-profiling the cleaned dataset for the Visualise tab is deferred to a
+     * background thread: {@link DataCleaner#profileColumns} is O(n·columns) and
+     * must not block the event dispatch thread.</p>
      */
     private void onApplied(DataSet cleaned) {
         previewPanel.showData(cleaned);
-        tabs.setSelectedIndex(0); // jump to Preview tab
+        tabs.setSelectedIndex(0); // jump to Preview immediately — don't wait for profiling
+
+        new SwingWorker<List<ColumnProfile>, Void>() {
+            @Override protected List<ColumnProfile> doInBackground() {
+                return new DataCleaner().profileColumns(cleaned);
+            }
+            @Override protected void done() {
+                try { visualisationPanel.onDataSetLoaded(cleaned, get()); }
+                catch (Exception ignored) {}
+            }
+        }.execute();
     }
 
     /**

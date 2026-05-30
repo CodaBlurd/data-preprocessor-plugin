@@ -28,3 +28,6 @@ build_*.py
 
 # One-off repo bootstrap script (kept locally, not in source)
 setup-github-project.sh
+
+# Marketing / launch post drafts (kept locally, not in source)
+release-posts-*.md

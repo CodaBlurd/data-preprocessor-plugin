@@ -24,7 +24,8 @@ Data Preprocessor brings your data-cleaning workflow directly into IntelliJ IDEA
 | **Preview** | Configurable table preview of your loaded dataset |
 | **Profile** | Per-column stats: type, null count, unique values, mean, median, std, min, max, mode |
 | **Clean** | Point-and-click operations that build a reproducible, editable pipeline |
-| **Code** | Auto-generated pandas script — save anywhere as `.py` or copy to clipboard |
+| **Code** | Auto-generated pandas or R script — save anywhere as `.py` / `.R` or copy to clipboard |
+| **Visualise** | Histogram and box plot per numeric column; charts update after every Apply |
 
 ---
 
@@ -54,7 +55,9 @@ Visit [plugins.jetbrains.com/plugin/31226-data-preprocessor](https://plugins.jet
 - **Type casting** — cast any column to int, float, boolean, or string
 - **Pipeline editing** — reorder, remove, clear, undo, and redo cleaning steps before applying them
 - **Python code generation** — one click produces a complete, ready-to-run `pandas` script that mirrors every cleaning step you applied
-- **Save as .py** — choose where to save the generated script; it opens directly in the IntelliJ editor
+- **R code generation** — one click produces an equivalent base-R script; `readxl`, `jsonlite`, and `fastDummies` imported only when needed
+- **Column visualisations** — new Visualise tab renders a histogram or box plot for every numeric column; charts update automatically after Apply so you can see the effect of normalization or outlier removal instantly
+- **Save as .py / .R** — choose where to save the generated script; it opens directly in the IntelliJ editor
 - **Export cleaned CSV** — choose where to save the cleaned dataset
 - **Copy cleaned data as TSV** — copy the applied result for direct paste into Excel or Google Sheets
 - **Settings page** — configure preview row limit, default normalization operation, and default train/test ratio under **Settings → Tools → Data Preprocessor**
@@ -128,8 +131,9 @@ src/main/java/com/datapreprocessor/
 ├── engine/
 │   ├── DataLoader.java                          # CSV → DataSet (Apache Commons CSV)
 │   ├── DataCleaner.java                         # All cleaning & transformation logic
-│   ├── CodeGenerator.java                       # Generates pandas Python code
-│   └── DataExporter.java                        # CSV and .py file export
+│   ├── CodeGenerator.java                       # Generates pandas Python and R code
+│   ├── DataChartFactory.java                    # JFreeChart histogram and box plot factory
+│   └── DataExporter.java                        # CSV and .py / .R file export
 ├── settings/
 │   ├── DataPreprocessorSettings.java            # Persistent plugin settings
 │   └── DataPreprocessorConfigurable.java        # Settings UI under Tools
@@ -138,7 +142,13 @@ src/main/java/com/datapreprocessor/
 │   └── GeneratePreprocessingCodeAction.java     # Insert code at editor caret
 └── toolwindow/
     ├── DataPreprocessorToolWindowFactory.java
-    └── DataPreprocessorToolWindow.java          # Main Swing UI (4 tabs)
+    ├── DataPreprocessorToolWindow.java          # Coordinator — wires all panels (5 tabs)
+    ├── HeaderBarPanel.java                      # Browse / path label / Reload
+    ├── PreviewPanel.java                        # Tab 1 — raw data table
+    ├── ProfilePanel.java                        # Tab 2 — per-column statistics
+    ├── CleanPanel.java                          # Tab 3 — pipeline builder + actions
+    ├── CodePanel.java                           # Tab 4 — generated code viewer
+    └── VisualisationPanel.java                  # Tab 5 — histogram / box plot per column
 ```
 
 ---

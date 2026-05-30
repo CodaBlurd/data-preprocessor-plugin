@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>com.datapreprocessor.plugin</id>
     <name>Data Preprocessor</name>
-    <version>1.5.6</version>
+    <version>1.6.0</version>
     <vendor email="admin@keencodelabs.com" url="https://github.com/codaBlurd/data-preprocessor-plugin">
         Keen Code Labs
     </vendor>
@@ -34,6 +34,7 @@
           <li><b>Undo / Redo</b> — step back and forward through pipeline edits without losing work</li>
           <li><b>Export cleaned CSV</b> — choose where to save the transformed dataset via a file dialog</li>
           <li><b>Copy cleaned data as TSV</b> — paste applied results directly into Excel or Google Sheets</li>
+          <li><b>Column Visualisations</b> — histogram and box plot per numeric column rendered inside the tool window; charts update automatically after Apply</li>
           <li><b>Settings</b> — configure preview row limit, default normalization method, and default train/test ratio</li>
         </ul>
 

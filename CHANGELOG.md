@@ -7,6 +7,40 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.6.0] — 2026-05-30
+
+### Added
+- **📈 Visualise tab** — a new fifth tab renders a **histogram** or **box plot** for every
+  numeric column in the loaded dataset. Select a column from the left panel, toggle between
+  chart types with the Histogram / Box Plot buttons, and zoom or pan the chart with the mouse
+  wheel. All charts are styled to match the IDE's dark editor background.
+- **`DataChartFactory`** (new engine class) — static factory producing `JFreeChart` instances
+  for histograms (`HistogramDataset`) and box plots (`DefaultBoxAndWhiskerCategoryDataset`).
+  Box plot whiskers are clamped to the IQR fences already computed by `DataCleaner`; the
+  `ColumnProfile`'s pre-computed `q1`, `q3`, `median`, `min`, and `max` values are used
+  directly so no second data scan is needed.
+- **Charts update after Apply** — `onApplied()` in the coordinator re-profiles the cleaned
+  dataset and passes fresh profiles to `VisualisationPanel`, so charts immediately reflect the
+  effect of normalization, outlier removal, or any other pipeline step.
+
+### Fixed
+- **Histogram showed stale data after Apply** — `VisualisationPanel` now stores the `DataSet`
+  it was last given via `onDataSetLoaded()` rather than reading the coordinator's
+  `currentDataSet` through a supplier. `onApplied()` never writes back to `currentDataSet`,
+  so using the supplier caused the histogram to display raw original data while the box plot
+  correctly showed cleaned statistics.
+- **Visualise tab not updated on Reload** — `reloadCurrentFile()` now calls
+  `visualisationPanel.onDataSetLoaded(fresh, columnProfiles)` alongside the existing
+  `previewPanel`, `profilePanel`, and `cleanPanel` refresh calls.
+- **`DataChartFactory.blankChart()` potential NPE** — `ChartFactory.createBarChart()` was
+  called with a `null` dataset, which can trigger a `NullPointerException` inside JFreeChart's
+  renderer. Replaced with an empty `DefaultCategoryDataset`.
+
+### Dependencies
+- Added `org.jfree:jfreechart:1.5.4` for chart rendering.
+
+---
+
 ## [1.5.6] — 2026-05-19
 
 ### Changed
