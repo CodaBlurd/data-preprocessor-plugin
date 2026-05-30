@@ -1,6 +1,8 @@
 package com.datapreprocessor.actions;
 
+import com.datapreprocessor.engine.DataCleaner;
 import com.datapreprocessor.engine.DataLoader;
+import com.datapreprocessor.model.ColumnProfile;
 import com.datapreprocessor.model.DataSet;
 import com.datapreprocessor.toolwindow.DataPreprocessorToolWindow;
 import com.datapreprocessor.toolwindow.DataPreprocessorToolWindowFactory;
@@ -17,6 +19,7 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import java.io.IOException;
+import java.util.List;
 
 /**
  * Action triggered from the Project View context menu or the Tools menu.
@@ -67,19 +70,22 @@ public class OpenDataFileAction extends AnAction {
             return;
         }
 
-        // Load the dataset on a background thread, then update the UI on EDT
-        SwingWorker<DataSet, Void> worker = new SwingWorker<>() {
+        // Load the dataset AND compute column profiles on a background thread.
+        // DataCleaner.profileColumns() is O(n·columns) and must not block the EDT.
+        SwingWorker<LoadResult, Void> worker = new SwingWorker<>() {
 
             @Override
-            protected DataSet doInBackground() throws IOException {
-                return new DataLoader().load(file.getPath()); // dispatches by extension
+            protected LoadResult doInBackground() throws IOException {
+                DataSet ds = new DataLoader().load(file.getPath());
+                List<ColumnProfile> profiles = new DataCleaner().profileColumns(ds);
+                return new LoadResult(ds, profiles);
             }
 
             @Override
             protected void done() {
                 try {
-                    DataSet ds = get();
-                    openToolWindowWithData(project, ds);
+                    LoadResult result = get();
+                    openToolWindowWithData(project, result.dataSet(), result.profiles());
                 } catch (Exception ex) {
                     Messages.showErrorDialog(
                             project,
@@ -93,15 +99,17 @@ public class OpenDataFileAction extends AnAction {
 
     // -------------------------------------------------------------------------
 
-    private void openToolWindowWithData(Project project, DataSet ds) {
+    /** Pairs a freshly loaded dataset with its pre-computed column profiles. */
+    private record LoadResult(DataSet dataSet, List<ColumnProfile> profiles) {}
+
+    private void openToolWindowWithData(Project project, DataSet ds, List<ColumnProfile> profiles) {
         ToolWindowManager twm = ToolWindowManager.getInstance(project);
         ToolWindow tw = twm.getToolWindow(DataPreprocessorToolWindowFactory.TOOL_WINDOW_ID);
         if (tw == null) return;
 
         tw.activate(() -> {
-            // Retrieve our panel and load the dataset
             DataPreprocessorToolWindow panel = DataPreprocessorToolWindowFactory.getPanel(project);
-            if (panel != null) panel.loadDataSet(ds);
+            if (panel != null) panel.loadDataSet(ds, profiles);
         });
     }
 }

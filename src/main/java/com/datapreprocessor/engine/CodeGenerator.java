@@ -1,6 +1,12 @@
 package com.datapreprocessor.engine;
 
+import com.datapreprocessor.model.DataSet;
+
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 /**
  * Generates ready-to-run Python (pandas) preprocessing code from a list of
@@ -184,6 +190,62 @@ public class CodeGenerator {
         sb.append(String.format(
                 "cat(sprintf(\"Saved %%d rows to '%s'\\n\", nrow(df)))\n", outputPath));
 
+        return sb.toString();
+    }
+
+    /**
+     * Generates a PostgreSQL-style SQL transformation script.
+     *
+     * <p>SQL import syntax differs by database and file type, so the generated
+     * script assumes the source file has already been imported as {@code source_table}.
+     * Each selected operation becomes one CTE, preserving the same step order as the UI.</p>
+     *
+     * @param filePath source file path, used only for comments and output naming hints
+     * @param steps ordered list of preprocessing operations
+     * @param dataSet loaded dataset, used for headers and one-hot category discovery
+     * @return multi-line SQL source code as a String
+     */
+    public String generateSql(String filePath, List<PreprocessingStep> steps, DataSet dataSet) {
+        String safePath = filePath != null ? filePath.replace("\\", "/") : "";
+        List<String> headers = dataSet != null ? dataSet.getHeaders() : List.of();
+        List<String> currentHeaders = new ArrayList<>(headers);
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("-- ============================================================\n");
+        sb.append("-- Data Preprocessor - generated SQL transformation template\n");
+        sb.append("-- ============================================================\n");
+        sb.append("-- Dialect: PostgreSQL-style analytical SQL.\n");
+        sb.append("-- Before running: import the dataset as source_table, or replace source_table below.\n");
+        if (!safePath.isBlank()) {
+            sb.append("-- Source file: ").append(safePath).append("\n");
+        }
+        sb.append("-- Missing values are treated as SQL NULL values.\n\n");
+
+        if (steps.isEmpty()) {
+            sb.append("SELECT *\nFROM source_table;\n");
+            return sb.toString();
+        }
+
+        sb.append("WITH\n");
+        sb.append("step_0 AS (\n");
+        sb.append("    SELECT *\n");
+        sb.append("    FROM source_table\n");
+        sb.append(")");
+
+        String previous = "step_0";
+        for (int i = 0; i < steps.size(); i++) {
+            String current = "step_" + (i + 1);
+            sb.append(",\n");
+            sb.append(current).append(" AS (\n");
+            PreprocessingStep step = steps.get(i);
+            sb.append(toSqlCode(step, previous, currentHeaders, dataSet));
+            sb.append("\n)");
+            previous = current;
+            currentHeaders = updateSqlHeaders(currentHeaders, step, dataSet);
+        }
+
+        sb.append("\nSELECT *\n");
+        sb.append("FROM ").append(previous).append(";\n");
         return sb.toString();
     }
 
@@ -499,6 +561,170 @@ public class CodeGenerator {
     }
 
     // -------------------------------------------------------------------------
+    // Step → SQL code
+    // -------------------------------------------------------------------------
+
+    private String toSqlCode(PreprocessingStep step, String previous, List<String> headers, DataSet dataSet) {
+        String col = step.column();
+        String qCol = col != null ? sqlIdent(col) : null;
+
+        return switch (step.operation()) {
+            case DROP_MISSING_ROWS -> {
+                if (headers.isEmpty()) {
+                    yield "    -- Drop rows with missing values: add column predicates after import.\n" +
+                            "    SELECT *\n" +
+                            "    FROM " + previous;
+                }
+                String predicate = headers.stream()
+                        .map(h -> sqlIdent(h) + " IS NOT NULL")
+                        .reduce((a, b) -> a + "\n      AND " + b)
+                        .orElse("TRUE");
+                yield "    -- Drop rows with any missing value\n" +
+                        "    SELECT *\n" +
+                        "    FROM " + previous + "\n" +
+                        "    WHERE " + predicate;
+            }
+
+            case FILL_MISSING_MEAN ->
+                    "    -- Fill missing values in " + col + " with column mean\n" +
+                    "    SELECT " + projectionReplacing(headers, col,
+                            "COALESCE(" + qCol + ", (SELECT AVG(" + qCol + ") FROM " + previous + "))") + "\n" +
+                    "    FROM " + previous;
+
+            case FILL_MISSING_MEDIAN ->
+                    "    -- Fill missing values in " + col + " with column median\n" +
+                    "    SELECT " + projectionReplacing(headers, col,
+                            "COALESCE(" + qCol + ", (SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY " + qCol + ") FROM " + previous + "))") + "\n" +
+                    "    FROM " + previous;
+
+            case FILL_MISSING_MODE ->
+                    "    -- Fill missing values in " + col + " with most frequent value\n" +
+                    "    SELECT " + projectionReplacing(headers, col,
+                            "COALESCE(" + qCol + ", (SELECT " + qCol + " FROM " + previous +
+                                    " WHERE " + qCol + " IS NOT NULL GROUP BY " + qCol +
+                                    " ORDER BY COUNT(*) DESC, " + qCol + " LIMIT 1))") + "\n" +
+                    "    FROM " + previous;
+
+            case FILL_MISSING_CUSTOM -> {
+                String fill = step.param() != null ? step.param() : "";
+                String sqlFill = isNumericString(fill) ? fill : sqlLiteral(fill);
+                yield "    -- Fill missing values in " + col + " with a custom value\n" +
+                        "    SELECT " + projectionReplacing(headers, col, "COALESCE(" + qCol + ", " + sqlFill + ")") + "\n" +
+                        "    FROM " + previous;
+            }
+
+            case REMOVE_DUPLICATES ->
+                    "    -- Remove duplicate rows\n" +
+                    "    SELECT DISTINCT *\n" +
+                    "    FROM " + previous;
+
+            case REMOVE_OUTLIERS_IQR ->
+                    "    -- Remove outliers in " + col + " using the IQR fence\n" +
+                    "    SELECT p.*\n" +
+                    "    FROM " + previous + " p\n" +
+                    "    CROSS JOIN (\n" +
+                    "        SELECT\n" +
+                    "            PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY " + qCol + ") AS q1,\n" +
+                    "            PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY " + qCol + ") AS q3\n" +
+                    "        FROM " + previous + "\n" +
+                    "        WHERE " + qCol + " IS NOT NULL\n" +
+                    "    ) s\n" +
+                    "    WHERE p." + qCol + " BETWEEN s.q1 - 1.5 * (s.q3 - s.q1)\n" +
+                    "      AND s.q3 + 1.5 * (s.q3 - s.q1)";
+
+            case NORMALIZE_MINMAX ->
+                    "    -- Min-Max normalize " + col + " to [0, 1]\n" +
+                    "    SELECT " + projectionReplacing(headers, col,
+                            "(1.0 * (" + qCol + " - MIN(" + qCol + ") OVER ())) / NULLIF(MAX(" + qCol + ") OVER () - MIN(" + qCol + ") OVER (), 0)") + "\n" +
+                    "    FROM " + previous;
+
+            case NORMALIZE_ZSCORE ->
+                    "    -- Z-Score standardise " + col + "\n" +
+                    "    SELECT " + projectionReplacing(headers, col,
+                            "(1.0 * (" + qCol + " - AVG(" + qCol + ") OVER ())) / NULLIF(STDDEV_SAMP(" + qCol + ") OVER (), 0)") + "\n" +
+                    "    FROM " + previous;
+
+            case CAST_COLUMN -> {
+                String targetType = step.param() != null ? step.param().toLowerCase(Locale.ROOT) : "string";
+                String sqlType = switch (targetType) {
+                    case "int", "integer" -> "INTEGER";
+                    case "float", "double" -> "DOUBLE PRECISION";
+                    case "boolean", "bool" -> "BOOLEAN";
+                    default -> "TEXT";
+                };
+                yield "    -- Cast " + col + " to " + sqlType + "\n" +
+                        "    SELECT " + projectionReplacing(headers, col, "CAST(" + qCol + " AS " + sqlType + ")") + "\n" +
+                        "    FROM " + previous;
+            }
+
+            case TRAIN_TEST_SPLIT -> {
+                String ratio = step.param() != null ? step.param() : "0.8";
+                yield "    -- Train/test split is represented as a deterministic random rank.\n" +
+                        "    -- Rows with split_rank <= " + ratio + " are train; the rest are test.\n" +
+                        "    SELECT *,\n" +
+                        "           CASE WHEN CUME_DIST() OVER (ORDER BY md5(CAST(ROW(" + qualifiedProjection(headers, "p") + ") AS TEXT))) <= " + ratio + "\n" +
+                        "                THEN 'train' ELSE 'test' END AS split_set\n" +
+                        "    FROM " + previous + " p";
+            }
+
+            case LABEL_ENCODE ->
+                    "    -- Label encode " + col + " to zero-based integer IDs\n" +
+                    "    SELECT " + projectionReplacing(headers, col,
+                            "DENSE_RANK() OVER (ORDER BY " + qCol + ") - 1") + "\n" +
+                    "    FROM " + previous;
+
+            case ONE_HOT_ENCODE -> {
+                List<String> values = distinctColumnValues(dataSet, col);
+                if (values.isEmpty()) {
+                    yield "    -- One-hot encode " + col + ": no observed values were available.\n" +
+                            "    SELECT *\n" +
+                            "    FROM " + previous;
+                }
+                yield "    -- One-hot encode " + col + " using observed values from the loaded sample\n" +
+                        "    SELECT " + projectionOneHot(headers, col, values) + "\n" +
+                        "    FROM " + previous;
+            }
+
+            case SORT_COLUMN -> {
+                boolean asc = !"descending".equals(step.param());
+                yield "    -- Sort by " + col + " (" + (asc ? "ascending" : "descending") + ")\n" +
+                        "    SELECT *\n" +
+                        "    FROM " + previous + "\n" +
+                        "    ORDER BY " + qCol + (asc ? " ASC" : " DESC");
+            }
+
+            case FILTER_ROWS -> {
+                String raw = step.param() != null ? step.param() : "==|";
+                int sep = raw.indexOf('|');
+                String op = sep > 0 ? raw.substring(0, sep) : "==";
+                String val = sep >= 0 ? raw.substring(sep + 1) : "";
+                String sqlVal = isNumericString(val) ? val : sqlLiteral(val);
+                String condition = "contains".equals(op)
+                        ? "CAST(" + qCol + " AS TEXT) ILIKE '%' || " + sqlLiteral(val) + " || '%'"
+                        : qCol + " " + sqlOperator(op) + " " + sqlVal;
+                yield "    -- Filter rows: keep where " + col + " " + op + " " + val + "\n" +
+                        "    SELECT *\n" +
+                        "    FROM " + previous + "\n" +
+                        "    WHERE " + condition;
+            }
+
+            case NORMALIZE_ROBUST ->
+                    "    -- Robust scale " + col + " using median and IQR\n" +
+                    "    SELECT " + qualifiedProjectionReplacing(headers, col, "p",
+                            "(1.0 * (p." + qCol + " - s.median)) / NULLIF(s.q3 - s.q1, 0)") + "\n" +
+                    "    FROM " + previous + " p\n" +
+                    "    CROSS JOIN (\n" +
+                    "        SELECT\n" +
+                    "            PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY " + qCol + ") AS q1,\n" +
+                    "            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY " + qCol + ") AS median,\n" +
+                    "            PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY " + qCol + ") AS q3\n" +
+                    "        FROM " + previous + "\n" +
+                    "        WHERE " + qCol + " IS NOT NULL\n" +
+                    "    ) s";
+        };
+    }
+
+    // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
 
@@ -514,5 +740,119 @@ public class CodeGenerator {
         if (s == null || s.isBlank()) return false;
         try { Double.parseDouble(s); return true; }
         catch (NumberFormatException e) { return false; }
+    }
+
+    private String sqlIdent(String identifier) {
+        if (identifier == null || identifier.isBlank()) return "\"\"";
+        return "\"" + identifier.replace("\"", "\"\"") + "\"";
+    }
+
+    private String sqlLiteral(String value) {
+        return "'" + (value != null ? value : "").replace("'", "''") + "'";
+    }
+
+    private String sqlOperator(String op) {
+        return switch (op) {
+            case "==" -> "=";
+            case "!=", ">", "<", ">=", "<=" -> op;
+            default -> "=";
+        };
+    }
+
+    private String projectionReplacing(List<String> headers, String targetColumn, String expression) {
+        if (headers == null || headers.isEmpty()) {
+            return "*, " + expression + " AS " + sqlIdent(targetColumn);
+        }
+        List<String> parts = new ArrayList<>();
+        for (String header : headers) {
+            parts.add(header.equals(targetColumn)
+                    ? expression + " AS " + sqlIdent(header)
+                    : sqlIdent(header));
+        }
+        return String.join(",\n           ", parts);
+    }
+
+    private String qualifiedProjection(List<String> headers, String alias) {
+        if (headers == null || headers.isEmpty()) return alias + ".*";
+        List<String> parts = new ArrayList<>();
+        for (String header : headers) {
+            parts.add(alias + "." + sqlIdent(header));
+        }
+        return String.join(", ", parts);
+    }
+
+    private String qualifiedProjectionReplacing(List<String> headers, String targetColumn, String alias, String expression) {
+        if (headers == null || headers.isEmpty()) {
+            return alias + ".*, " + expression + " AS " + sqlIdent(targetColumn);
+        }
+        List<String> parts = new ArrayList<>();
+        for (String header : headers) {
+            parts.add(header.equals(targetColumn)
+                    ? expression + " AS " + sqlIdent(header)
+                    : alias + "." + sqlIdent(header));
+        }
+        return String.join(",\n           ", parts);
+    }
+
+    private String projectionOneHot(List<String> headers, String targetColumn, List<String> values) {
+        List<String> parts = new ArrayList<>();
+        if (headers != null) {
+            for (String header : headers) {
+                if (!header.equals(targetColumn)) {
+                    parts.add(sqlIdent(header));
+                }
+            }
+        } else {
+            parts.add("*");
+        }
+        List<String> columnNames = oneHotColumnNames(targetColumn, values);
+        for (int i = 0; i < values.size(); i++) {
+            String value = values.get(i);
+            String columnName = columnNames.get(i);
+            parts.add("CASE WHEN " + sqlIdent(targetColumn) + " = " + sqlLiteral(value) +
+                    " THEN 1 ELSE 0 END AS " + sqlIdent(columnName));
+        }
+        return String.join(",\n           ", parts);
+    }
+
+    private List<String> distinctColumnValues(DataSet dataSet, String column) {
+        if (dataSet == null || column == null) return List.of();
+        Set<String> values = new LinkedHashSet<>();
+        for (String value : dataSet.getColumn(column)) {
+            if (value != null && !value.isBlank()) values.add(value);
+        }
+        return new ArrayList<>(values);
+    }
+
+    private List<String> updateSqlHeaders(List<String> headers, PreprocessingStep step, DataSet dataSet) {
+        List<String> next = new ArrayList<>(headers);
+        if (step.operation() == Operation.ONE_HOT_ENCODE && step.column() != null) {
+            next.remove(step.column());
+            next.addAll(oneHotColumnNames(step.column(), distinctColumnValues(dataSet, step.column())));
+        } else if (step.operation() == Operation.TRAIN_TEST_SPLIT && !next.contains("split_set")) {
+            next.add("split_set");
+        }
+        return next;
+    }
+
+    private List<String> oneHotColumnNames(String targetColumn, List<String> values) {
+        List<String> names = new ArrayList<>();
+        Set<String> used = new LinkedHashSet<>();
+        for (String value : values) {
+            String suffix = value
+                    .trim()
+                    .replaceAll("[^A-Za-z0-9]+", "_")
+                    .replaceAll("^_+|_+$", "");
+            if (suffix.isBlank()) suffix = "value";
+            String baseName = targetColumn + "_" + suffix;
+            String name = baseName;
+            int counter = 2;
+            while (used.contains(name)) {
+                name = baseName + "_" + counter++;
+            }
+            used.add(name);
+            names.add(name);
+        }
+        return names;
     }
 }

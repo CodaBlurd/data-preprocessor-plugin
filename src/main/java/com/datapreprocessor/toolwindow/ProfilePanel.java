@@ -63,6 +63,14 @@ class ProfilePanel {
         });
     }
 
+    void showLoading() {
+        profileTable.setModel(new DefaultTableModel(
+                new Object[][]{{"Refreshing profiles from cleaned dataset…"}},
+                new String[]{"Status"}) {
+            @Override public boolean isCellEditable(int r, int c) { return false; }
+        });
+    }
+
     // -------------------------------------------------------------------------
 
     private String fmt(double d) {

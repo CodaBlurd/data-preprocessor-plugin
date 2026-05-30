@@ -43,6 +43,8 @@ import java.util.function.Supplier;
  *                                    coordinator updates the Preview tab only.</li>
  *   <li>{@code onCodeGenerated}    — called after Generate with the Python source;
  *                                    coordinator pushes it to the Code tab.</li>
+ *   <li>{@code onCodeGeneratedSql} — called after Generate SQL with the SQL source;
+ *                                    coordinator pushes it to the Code tab.</li>
  *   <li>{@code getSourcePath}      — returns the source file path for CSV export.</li>
  *   <li>{@code onStatus}           — forwards status messages to the shared status bar.</li>
  *   <li>{@code onStepCountChanged} — fires with the new step count on every add/remove/clear;
@@ -56,6 +58,7 @@ class CleanPanel {
     private final Consumer<DataSet>  onApplied;
     private final Consumer<String>   onCodeGenerated;
     private final Consumer<String>   onCodeGeneratedR;
+    private final Consumer<String>   onCodeGeneratedSql;
     private final Supplier<String>   getSourcePath;
     private final Consumer<String>   onStatus;
     private final Consumer<Integer>  onStepCountChanged;
@@ -69,6 +72,16 @@ class CleanPanel {
 
     // The last cleaned result — retained so Export CSV doesn't require re-running Apply
     private DataSet cleanedDataSet;
+
+    // True while a SwingWorker apply is in flight — used to disable action buttons
+    // so the user cannot trigger a second Apply while one is already running.
+    private boolean isApplying = false;
+
+    // Incremented whenever a new dataset is loaded, superseding any in-flight apply.
+    // The apply worker captures this value at launch and discards its result in done()
+    // if the counter has moved on — preventing a stale result from overwriting the
+    // freshly-loaded dataset's state (e.g. if the user opens a new file mid-apply).
+    private int applyGeneration = 0;
 
     // ── Operation form controls ───────────────────────────────────────────────
     private final ComboBox<String> opSelector = new ComboBox<>(new String[]{
@@ -102,13 +115,23 @@ class CleanPanel {
     private final JList<String>    stepList           = new JList<>(stepListModel);
 
     // Kept as fields so they can be enabled / disabled dynamically
+    // ── Action bar (bottom) ───────────────────────────────────────────────────
     private JButton applyBtn;
     private JButton generateBtn;
     private JButton generateRBtn;
+    private JButton generateSqlBtn;
     private JButton exportBtn;
+    private JButton copyTsvBtn;
+    // ── Pipeline management (middle section) ──────────────────────────────────
+    // Must be fields (not buildStepList / buildOperationForm locals) so that
+    // updateButtonStates() can disable them during a background Apply run.
+    private JButton addBtn;
+    private JButton moveUpBtn;
+    private JButton moveDownBtn;
+    private JButton removeBtn;
+    private JButton clearBtn;
     private JButton undoBtn;
     private JButton redoBtn;
-    private JButton copyTsvBtn;
 
 
     // ── Constructor ───────────────────────────────────────────────────────────
@@ -118,6 +141,7 @@ class CleanPanel {
                Consumer<DataSet>  onApplied,
                Consumer<String>   onCodeGenerated,
                Consumer<String>   onCodeGeneratedR,
+               Consumer<String>   onCodeGeneratedSql,
                Supplier<String>   getSourcePath,
                Consumer<String>   onStatus,
                Consumer<Integer>  onStepCountChanged) {
@@ -126,6 +150,7 @@ class CleanPanel {
         this.onApplied           = onApplied;
         this.onCodeGenerated     = onCodeGenerated;
         this.onCodeGeneratedR    = onCodeGeneratedR;
+        this.onCodeGeneratedSql  = onCodeGeneratedSql;
         this.getSourcePath       = getSourcePath;
         this.onStatus            = onStatus;
         this.onStepCountChanged  = onStepCountChanged;
@@ -151,6 +176,8 @@ class CleanPanel {
      * Stores bare column names separately so badge text never leaks into step params.
      */
     void onDataSetLoaded(DataSet ds, List<ColumnProfile> profiles) {
+        applyGeneration++;   // cancel any in-flight apply worker for a previous dataset snapshot
+        isApplying = false;  // reset lock so reload/new-load cannot leave action buttons disabled
         colSelector.removeAllItems();
         actualColumnNames.clear();
         for (int i = 0; i < ds.getHeaders().size(); i++) {
@@ -276,7 +303,7 @@ class CleanPanel {
         });
 
         // Add Step button — full width, below the optional fields
-        JButton addBtn = new JButton("➕  Add step to pipeline");
+        addBtn = new JButton("➕  Add step to pipeline");
         gbc.gridx = 0; gbc.gridy = 8; gbc.gridwidth = 2; gbc.weightx = 1;
         builder.add(addBtn, gbc);
         addBtn.addActionListener(e -> addStep());
@@ -292,12 +319,12 @@ class CleanPanel {
         panel.add(new JBScrollPane(stepList), BorderLayout.CENTER);
 
         JPanel mgmt = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
-        JButton moveUpBtn   = new JButton("↑ Up");
-        JButton moveDownBtn = new JButton("↓ Down");
-        JButton removeBtn   = new JButton("Remove");
-        JButton clearBtn    = new JButton("Clear all");
-        undoBtn             = new JButton("Undo");
-        redoBtn             = new JButton("Redo");
+        moveUpBtn   = new JButton("↑ Up");
+        moveDownBtn = new JButton("↓ Down");
+        removeBtn   = new JButton("Remove");
+        clearBtn    = new JButton("Clear all");
+        undoBtn     = new JButton("Undo");
+        redoBtn     = new JButton("Redo");
 
         moveUpBtn.addActionListener(e -> {
             int sel = stepList.getSelectedIndex();
@@ -360,7 +387,7 @@ class CleanPanel {
     }
 
     private JPanel buildActionBar() {
-        JPanel bar = new JPanel(new GridLayout(5, 1, 0, 4));
+        JPanel bar = new JPanel(new GridLayout(6, 1, 0, 4));
         bar.setBorder(BorderFactory.createEmptyBorder(6, 0, 0, 0));
 
         applyBtn = new JButton("▶   Apply steps  (preview result)");
@@ -379,6 +406,10 @@ class CleanPanel {
         generateRBtn.setEnabled(false);
         generateRBtn.addActionListener(e -> generateRCode());
 
+        generateSqlBtn = new JButton("🗄  Generate SQL code");
+        generateSqlBtn.setEnabled(false);
+        generateSqlBtn.addActionListener(e -> generateSqlCode());
+
         exportBtn = new JButton("📤  Export cleaned CSV to disk");
         exportBtn.setEnabled(false);
         exportBtn.addActionListener(e -> exportCleanedCsv());
@@ -391,6 +422,7 @@ class CleanPanel {
         bar.add(applyBtn);
         bar.add(generateBtn);
         bar.add(generateRBtn);
+        bar.add(generateSqlBtn);
         bar.add(exportBtn);
         bar.add(copyTsvBtn);
         return bar;
@@ -457,49 +489,88 @@ class CleanPanel {
         onStatus.accept("Step added. Total: " + pendingSteps.size());
     }
 
-    /** Runs the Java transformation and notifies the coordinator to refresh the Preview tab. */
+    /**
+     * Runs the Java transformation pipeline off the EDT and notifies the coordinator
+     * to refresh the Preview tab when done.
+     *
+     * <p>DataCleaner operations such as {@code oneHotEncode} (new columns per unique value),
+     * {@code removeDuplicates} (row-key join), and {@code normalizeRobustScaler} (sorting-based
+     * percentile) can be O(n·columns) on large datasets.  Running them off the EDT prevents
+     * the IDE from freezing while the pipeline is executing.</p>
+     *
+     * <p>All action buttons are disabled for the duration of the worker to prevent
+     * re-entrant Apply calls and accidental pipeline edits mid-flight.</p>
+     */
     private void applySteps() {
         DataSet ds = getDataSet.get();
         if (ds == null)             { onStatus.accept("Load a dataset first."); return; }
         if (pendingSteps.isEmpty()) { onStatus.accept("No steps to apply.");    return; }
 
-        DataSet working = ds.shallowCopy();
-        DataCleaner cleaner = new DataCleaner();
+        // Snapshot the pipeline so the background thread has an immutable view
+        // that cannot be modified by the user while Apply is in progress.
+        List<PreprocessingStep> steps = new ArrayList<>(pendingSteps);
+        DataSet base = ds.shallowCopy();
 
-        for (PreprocessingStep step : pendingSteps) {
-            String col = step.column();
-            switch (step.operation()) {
-                case DROP_MISSING_ROWS   -> cleaner.dropMissingRows(working);
-                case FILL_MISSING_MEAN   -> cleaner.fillMissingWithMean(working, col);
-                case FILL_MISSING_MEDIAN -> cleaner.fillMissingWithMedian(working, col);
-                case FILL_MISSING_MODE   -> cleaner.fillMissingWithMode(working, col);
-                case FILL_MISSING_CUSTOM -> cleaner.fillMissingWith(working, col, step.param());
-                case REMOVE_DUPLICATES   -> cleaner.removeDuplicates(working);
-                case REMOVE_OUTLIERS_IQR -> cleaner.removeOutliers(working, col);
-                case NORMALIZE_MINMAX    -> cleaner.normalizeMinMax(working, col);
-                case NORMALIZE_ZSCORE    -> cleaner.normalizeZScore(working, col);
-                case CAST_COLUMN         -> cleaner.castColumn(working, col, step.param());
-                case TRAIN_TEST_SPLIT    -> { /* Python-only — no Java transformation */ }
-                case LABEL_ENCODE        -> cleaner.labelEncode(working, col);
-                case ONE_HOT_ENCODE      -> cleaner.oneHotEncode(working, col);
-                case SORT_COLUMN         -> cleaner.sortColumn(working, col,
-                                               !"descending".equals(step.param()));
-                case FILTER_ROWS         -> {
-                    String raw = step.param() != null ? step.param() : "==|";
-                    int    sep = raw.indexOf('|');
-                    String op  = sep > 0 ? raw.substring(0, sep) : "==";
-                    String val = sep >= 0 ? raw.substring(sep + 1) : "";
-                    cleaner.filterRows(working, col, op, val);
+        isApplying = true;
+        final int myGeneration = applyGeneration;  // snapshot — if onDataSetLoaded fires before done(), this will differ
+        updateButtonStates();   // disables all action buttons
+        onStatus.accept("Applying " + steps.size() + " step(s)…");
+
+        new SwingWorker<DataSet, Void>() {
+            @Override protected DataSet doInBackground() {
+                DataCleaner cleaner = new DataCleaner();
+                DataSet working = base;
+                for (PreprocessingStep step : steps) {
+                    String col = step.column();
+                    switch (step.operation()) {
+                        case DROP_MISSING_ROWS   -> cleaner.dropMissingRows(working);
+                        case FILL_MISSING_MEAN   -> cleaner.fillMissingWithMean(working, col);
+                        case FILL_MISSING_MEDIAN -> cleaner.fillMissingWithMedian(working, col);
+                        case FILL_MISSING_MODE   -> cleaner.fillMissingWithMode(working, col);
+                        case FILL_MISSING_CUSTOM -> cleaner.fillMissingWith(working, col, step.param());
+                        case REMOVE_DUPLICATES   -> cleaner.removeDuplicates(working);
+                        case REMOVE_OUTLIERS_IQR -> cleaner.removeOutliers(working, col);
+                        case NORMALIZE_MINMAX    -> cleaner.normalizeMinMax(working, col);
+                        case NORMALIZE_ZSCORE    -> cleaner.normalizeZScore(working, col);
+                        case CAST_COLUMN         -> cleaner.castColumn(working, col, step.param());
+                        case TRAIN_TEST_SPLIT    -> { /* Python-only — no Java transformation */ }
+                        case LABEL_ENCODE        -> cleaner.labelEncode(working, col);
+                        case ONE_HOT_ENCODE      -> cleaner.oneHotEncode(working, col);
+                        case SORT_COLUMN         -> cleaner.sortColumn(working, col,
+                                                       !"descending".equals(step.param()));
+                        case FILTER_ROWS         -> {
+                            String raw = step.param() != null ? step.param() : "==|";
+                            int    sep = raw.indexOf('|');
+                            String op  = sep > 0 ? raw.substring(0, sep) : "==";
+                            String val = sep >= 0 ? raw.substring(sep + 1) : "";
+                            cleaner.filterRows(working, col, op, val);
+                        }
+                        case NORMALIZE_ROBUST -> cleaner.normalizeRobustScaler(working, col);
+                    }
                 }
-                case NORMALIZE_ROBUST -> cleaner.normalizeRobustScaler(working, col);
+                return working;
             }
-        }
 
-        cleanedDataSet = working;
-        updateButtonStates();  // enables Export now that we have a cleaned result
-        onApplied.accept(working);
-        onStatus.accept("Applied " + pendingSteps.size() + " step(s)  ·  "
-                + working.getRowCount() + " rows × " + working.getColumnCount() + " cols");
+            @Override protected void done() {
+                // If a new dataset was loaded while this worker was running, discard
+                // the result — it belongs to the old file and must not overwrite the
+                // fresh state that onDataSetLoaded/clearPipeline already established.
+                if (applyGeneration != myGeneration) return;
+
+                isApplying = false;
+                try {
+                    DataSet result = get();
+                    cleanedDataSet = result;
+                    updateButtonStates();   // re-enables buttons based on current state
+                    onApplied.accept(result);
+                    onStatus.accept("Applied " + steps.size() + " step(s)  ·  "
+                            + result.getRowCount() + " rows × " + result.getColumnCount() + " cols");
+                } catch (Exception ex) {
+                    updateButtonStates();   // re-enable even on failure
+                    onStatus.accept("Apply failed: " + ex.getMessage());
+                }
+            }
+        }.execute();
     }
 
     /** Generates Python code for the current pipeline and sends it to the Code tab. */
@@ -520,6 +591,16 @@ class CleanPanel {
         String code = new CodeGenerator().generateR(ds.getFilePath(), pendingSteps);
         onCodeGeneratedR.accept(code);
         onStatus.accept("R code generated  ·  " + pendingSteps.size() + " step(s)");
+    }
+
+    private void generateSqlCode() {
+        DataSet ds = getDataSet.get();
+        if (ds == null)             { onStatus.accept("Load a dataset first."); return; }
+        if (pendingSteps.isEmpty()) { onStatus.accept("No steps to generate code for."); return; }
+
+        String code = new CodeGenerator().generateSql(ds.getFilePath(), pendingSteps, ds);
+        onCodeGeneratedSql.accept(code);
+        onStatus.accept("SQL code generated  ·  " + pendingSteps.size() + " step(s)");
     }
 
     /**
@@ -588,13 +669,25 @@ class CleanPanel {
     private void updateButtonStates() {
         boolean hasSteps   = !pendingSteps.isEmpty();
         boolean hasCleaned = cleanedDataSet != null;
-        if (applyBtn    != null) applyBtn.setEnabled(hasSteps);
-        if (generateBtn != null) generateBtn.setEnabled(hasSteps);
-        if (generateRBtn != null) generateRBtn.setEnabled(hasSteps);
-        if (exportBtn   != null) exportBtn.setEnabled(hasCleaned);
-        if (copyTsvBtn != null) copyTsvBtn.setEnabled(hasCleaned);
-        if (undoBtn     != null) undoBtn.setEnabled(!undoStack.isEmpty());
-        if (redoBtn     != null) redoBtn.setEnabled(!redoStack.isEmpty());
+        boolean idle       = !isApplying;
+        // ── Action bar ────────────────────────────────────────────────────────
+        if (applyBtn    != null) applyBtn.setEnabled(hasSteps && idle);
+        if (generateBtn != null) generateBtn.setEnabled(hasSteps && idle);
+        if (generateRBtn != null) generateRBtn.setEnabled(hasSteps && idle);
+        if (generateSqlBtn != null) generateSqlBtn.setEnabled(hasSteps && idle);
+        if (exportBtn   != null) exportBtn.setEnabled(hasCleaned && idle);
+        if (copyTsvBtn  != null) copyTsvBtn.setEnabled(hasCleaned && idle);
+        // ── Pipeline management ───────────────────────────────────────────────
+        // Locked during Apply so the pipeline cannot be modified mid-flight —
+        // if steps were reordered or removed while the worker runs, the exported
+        // result would silently not match what is shown in the pipeline list.
+        if (addBtn      != null) addBtn.setEnabled(idle);
+        if (moveUpBtn   != null) moveUpBtn.setEnabled(hasSteps && idle);
+        if (moveDownBtn != null) moveDownBtn.setEnabled(hasSteps && idle);
+        if (removeBtn   != null) removeBtn.setEnabled(hasSteps && idle);
+        if (clearBtn    != null) clearBtn.setEnabled(hasSteps && idle);
+        if (undoBtn     != null) undoBtn.setEnabled(!undoStack.isEmpty() && idle);
+        if (redoBtn     != null) redoBtn.setEnabled(!redoStack.isEmpty() && idle);
     }
 
 

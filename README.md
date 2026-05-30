@@ -17,14 +17,14 @@
 
 ## What It Does
 
-Data Preprocessor brings your data-cleaning workflow directly into IntelliJ IDEA. Load CSV, Excel, or JSON data, profile every column, apply transformations through a point-and-click UI, and get ready-to-run **pandas Python code** generated for you — all without leaving the IDE.
+Data Preprocessor brings your data-cleaning workflow directly into IntelliJ IDEA. Load CSV, Excel, or JSON data, profile every column, apply transformations through a point-and-click UI, and generate ready-to-run **Python, R, or SQL** from the same pipeline — all without leaving the IDE.
 
 | Tab | What you get |
 |-----|-------------|
 | **Preview** | Configurable table preview of your loaded dataset |
 | **Profile** | Per-column stats: type, null count, unique values, mean, median, std, min, max, mode |
 | **Clean** | Point-and-click operations that build a reproducible, editable pipeline |
-| **Code** | Auto-generated pandas or R script — save anywhere as `.py` / `.R` or copy to clipboard |
+| **Code** | Auto-generated Python, R, or SQL — save anywhere as `.py`, `.R`, or `.sql`, or copy to clipboard |
 | **Visualise** | Histogram and box plot per numeric column; charts update after every Apply |
 
 ---
@@ -33,7 +33,7 @@ Data Preprocessor brings your data-cleaning workflow directly into IntelliJ IDEA
 
 ### From the IDE (recommended)
 
-1. Open **IntelliJ IDEA** (any edition, 2023.3+)
+1. Open **IntelliJ IDEA** (any edition, 2024.3+)
 2. Go to **Settings → Plugins → Marketplace**
 3. Search for **"Data Preprocessor"**
 4. Click **Install** and restart the IDE
@@ -56,8 +56,9 @@ Visit [plugins.jetbrains.com/plugin/31226-data-preprocessor](https://plugins.jet
 - **Pipeline editing** — reorder, remove, clear, undo, and redo cleaning steps before applying them
 - **Python code generation** — one click produces a complete, ready-to-run `pandas` script that mirrors every cleaning step you applied
 - **R code generation** — one click produces an equivalent base-R script; `readxl`, `jsonlite`, and `fastDummies` imported only when needed
+- **SQL code generation** — one click produces a PostgreSQL-style CTE template for database-side preprocessing
 - **Column visualisations** — new Visualise tab renders a histogram or box plot for every numeric column; charts update automatically after Apply so you can see the effect of normalization or outlier removal instantly
-- **Save as .py / .R** — choose where to save the generated script; it opens directly in the IntelliJ editor
+- **Save as .py / .R / .sql** — choose where to save generated code; it opens directly in the IntelliJ editor
 - **Export cleaned CSV** — choose where to save the cleaned dataset
 - **Copy cleaned data as TSV** — copy the applied result for direct paste into Excel or Google Sheets
 - **Settings page** — configure preview row limit, default normalization operation, and default train/test ratio under **Settings → Tools → Data Preprocessor**
@@ -77,11 +78,11 @@ Visit [plugins.jetbrains.com/plugin/31226-data-preprocessor](https://plugins.jet
   </tr>
   <tr>
     <td><img src="marketplace-screenshots/03_clean_transform.png" alt="Clean Operations" width="480"/></td>
-    <td><img src="marketplace-screenshots/04_generated_code.png" alt="Generated Python Code" width="480"/></td>
+    <td><img src="marketplace-screenshots/04_generated_code.png" alt="Generated Code" width="480"/></td>
   </tr>
   <tr>
     <td align="center"><em>Clean operations panel</em></td>
-    <td align="center"><em>Generated pandas code</em></td>
+    <td align="center"><em>Generated code tab</em></td>
   </tr>
 </table>
 
@@ -92,7 +93,7 @@ Visit [plugins.jetbrains.com/plugin/31226-data-preprocessor](https://plugins.jet
 ### Loading a file
 
 - Open the **Data Preprocessor** tool window from the right-side panel, or
-- Right-click any `.csv` file in the **Project** view → **Open in Data Preprocessor**
+- Right-click any `.csv`, `.xlsx`, or `.json` file in the **Project** view → **Open in Data Preprocessor**
 
 ### Building a cleaning pipeline
 
@@ -101,15 +102,15 @@ Visit [plugins.jetbrains.com/plugin/31226-data-preprocessor](https://plugins.jet
 3. Repeat for as many steps as needed
 4. Reorder steps with **↑ Up** / **↓ Down**, or use **Undo** / **Redo** while editing
 5. Click **▶ Apply steps** to preview the cleaned result
-6. Click **🐍 Generate Python code** to create the pandas script
+6. Click **🐍 Generate Python code**, **🔵 Generate R code**, or **🗄 Generate SQL code**
 
-The **Code** tab populates with a complete `pandas` script. Use **Save as .py** to choose a destination and open it in the editor, or copy and paste it into your notebook.
+The **Code** tab populates with generated code for the selected language. Use **Save as script…** to choose a destination and open it in the editor, or copy and paste it into your notebook or database console.
 
 ### Exporting results
 
 - **📤 Export cleaned CSV** — opens a save dialog and writes the applied result as CSV
 - **Copy cleaned data as TSV** — copies headers and cleaned rows for spreadsheet paste
-- **Save as .py** — opens a save dialog for `preprocess_<filename>.py` and opens it in the editor automatically
+- **Save as script…** — opens a save dialog for `preprocess_<filename>.py`, `.R`, or `.sql` and opens it in the editor automatically
 
 ### Settings
 
@@ -131,9 +132,9 @@ src/main/java/com/datapreprocessor/
 ├── engine/
 │   ├── DataLoader.java                          # CSV → DataSet (Apache Commons CSV)
 │   ├── DataCleaner.java                         # All cleaning & transformation logic
-│   ├── CodeGenerator.java                       # Generates pandas Python and R code
+│   ├── CodeGenerator.java                       # Generates Python, R, and SQL code
 │   ├── DataChartFactory.java                    # JFreeChart histogram and box plot factory
-│   └── DataExporter.java                        # CSV and .py / .R file export
+│   └── DataExporter.java                        # CSV and .py / .R / .sql file export
 ├── settings/
 │   ├── DataPreprocessorSettings.java            # Persistent plugin settings
 │   └── DataPreprocessorConfigurable.java        # Settings UI under Tools
@@ -190,7 +191,7 @@ To add a new cleaning operation:
 
 1. Add a variant to `CodeGenerator.Operation`
 2. Implement the logic in `DataCleaner`
-3. Add the pandas translation in `CodeGenerator.toCode()`
+3. Add the generated-code translation in `CodeGenerator` for Python, R, and SQL where applicable
 4. Add a label in the `opSelector` combo box in `CleanPanel`
 5. Handle the new index in `CleanPanel.addStep()` and `CleanPanel.applySteps()`
 

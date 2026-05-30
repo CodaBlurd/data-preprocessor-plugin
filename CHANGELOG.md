@@ -22,6 +22,29 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Charts update after Apply** — `onApplied()` in the coordinator re-profiles the cleaned
   dataset and passes fresh profiles to `VisualisationPanel`, so charts immediately reflect the
   effect of normalization, outlier removal, or any other pipeline step.
+- **Histogram mean / median markers** — two vertical lines are now drawn over the histogram:
+  an orange line for the mean and a green line for the median, making the distribution shape
+  immediately readable without needing to count bars.
+- **Histogram bar outlines** — a thin darker-blue border is drawn around each bar so
+  individual bins remain visually distinct at narrow widths.
+- **Histogram bin slider** — the Visualise tab now includes a 5–60 bin slider for histograms,
+  defaulting to 20 bins and disabling automatically for box plots.
+- **Reset Zoom** — chart zoom can now be reset with a dedicated button that restores the chart
+  auto-bounds after mouse-wheel zooming or panning.
+- **Stats strip above charts** — the Visualise tab now shows a compact strip above the chart
+  with mean, median, Q1, Q3, min, max, and missing percentage for the selected column.
+- **Box plot mean line** — the default mean dot is hidden and replaced with an orange horizontal
+  mean line, making it distinct from the blue IQR box, median line, and whiskers.
+- **Visualise selection preservation** — after Apply or Reload, the previously selected numeric
+  column is re-selected if it still exists; if a transformation removes it, the tab shows a
+  clear "Column no longer available after Apply" message instead of silently switching context.
+- **Column Profiles loading state after Apply** — the Profile tab now shows a "Refreshing
+  profiles from cleaned dataset..." status while cleaned profiles are recomputed in the
+  background.
+- **SQL code generation** — "Generate SQL code" now produces a PostgreSQL-style CTE template
+  for the current preprocessing pipeline. It covers the same pipeline operations as the UI,
+  quotes column identifiers safely, derives one-hot columns from observed values, and saves
+  with a `.sql` default filename from the Generated Code tab.
 
 ### Fixed
 - **Histogram showed stale data after Apply** — `VisualisationPanel` now stores the `DataSet`
@@ -35,6 +58,24 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **`DataChartFactory.blankChart()` potential NPE** — `ChartFactory.createBarChart()` was
   called with a `null` dataset, which can trigger a `NullPointerException` inside JFreeChart's
   renderer. Replaced with an empty `DefaultCategoryDataset`.
+- **EDT violation — `loadDataSet()` profiled columns on the Event Dispatch Thread** —
+  `DataCleaner.profileColumns()` is O(n·columns) (sorting-based percentiles). It now runs
+  inside `SwingWorker.doInBackground()` in both the Browse button worker
+  (`DataPreprocessorToolWindow.browseAndLoad`) and the context-menu action
+  (`OpenDataFileAction`). The coordinator exposes a new primary overload
+  `loadDataSet(DataSet, List<ColumnProfile>)` that accepts pre-computed profiles; the old
+  single-argument overload is kept for backward compatibility but noted as computing profiles
+  on the calling thread.
+- **EDT violation — `applySteps()` ran DataCleaner transforms on the Event Dispatch Thread** —
+  operations such as `oneHotEncode`, `removeDuplicates`, and `normalizeRobustScaler` can be
+  O(n·columns) on large datasets and previously froze the IDE for the duration. They now run
+  inside a `SwingWorker.doInBackground()` call. Apply, Generate, Export, Copy TSV, Add Step,
+  Move Up, Move Down, Remove, Clear All, Undo, and Redo are disabled while the worker is in
+  flight to prevent re-entrant calls and accidental pipeline edits mid-apply, and are restored
+  in `done()`.
+- **Stale Apply result after reload/new file** — in-flight Apply workers are now invalidated
+  whenever a dataset is loaded or reloaded, so a slow transformation from an old file cannot
+  re-enable Export or overwrite cleaned state for the currently loaded dataset.
 
 ### Dependencies
 - Added `org.jfree:jfreechart:1.5.4` for chart rendering.

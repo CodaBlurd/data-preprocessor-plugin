@@ -25,9 +25,9 @@ import java.util.function.Supplier;
 /**
  * Tab 4 — Generated Code.
  *
- * <p>Displays the pandas script produced by
+ * <p>Displays the Python, R, or SQL script produced by
  * {@link com.datapreprocessor.engine.CodeGenerator} and provides
- * Save-as-.py and Copy-to-clipboard actions.</p>
+ * Save-as-script and Copy-to-clipboard actions.</p>
  *
  * <p>Dependencies are injected via the constructor so this panel
  * never reaches into the coordinator directly:</p>
@@ -48,7 +48,7 @@ class CodePanel {
 
     private final JTextArea codeArea = new JTextArea();
 
-    /** "py" or "R" — tracks which language was last pushed into the code area. */
+    /** "py", "R", or "sql" — tracks which language was last pushed into the code area. */
     private String currentLanguage = "py";
 
     CodePanel(Project project, Supplier<String> getSourcePath, Consumer<String> onStatus) {
@@ -86,7 +86,7 @@ class CodePanel {
      * Replaces the code area content with the generated script.
      *
      * @param code     the generated source code
-     * @param language {@code "py"} for Python, {@code "R"} for R — used to
+     * @param language {@code "py"} for Python, {@code "R"} for R, or {@code "sql"} — used to
      *                 derive the correct default filename in the save dialog
      */
     void setCode(String code, String language) {
@@ -121,8 +121,8 @@ class CodePanel {
 
     /**
      * Prompts for a destination, writes the generated script, then opens it in
-     * the IDE editor. Accepts both {@code .py} and {@code .R} extensions so the
-     * dialog works correctly whether Python or R code was last generated.
+     * the IDE editor. The default extension follows whichever language was last
+     * generated: {@code .py}, {@code .R}, or {@code .sql}.
      *
      * <p>File I/O and VFS refresh run on a {@link SwingWorker} background
      * thread. {@code FileEditorManager.openFile()} is deferred via
@@ -138,10 +138,12 @@ class CodePanel {
         String sourcePath = getSourcePath.get();
         if (sourcePath == null) return;
 
-        // Default filename matches the language last generated (.py or .R)
-        String defaultPath = "R".equals(currentLanguage)
-                ? DataExporter.rScriptPath(sourcePath)
-                : DataExporter.pythonScriptPath(sourcePath);
+        // Default filename matches the language last generated (.py, .R, or .sql)
+        String defaultPath = switch (currentLanguage) {
+            case "R" -> DataExporter.rScriptPath(sourcePath);
+            case "sql" -> DataExporter.sqlScriptPath(sourcePath);
+            default -> DataExporter.pythonScriptPath(sourcePath);
+        };
         Path defaultOutput = Paths.get(defaultPath);
 
         FileSaverDescriptor descriptor = new FileSaverDescriptor(

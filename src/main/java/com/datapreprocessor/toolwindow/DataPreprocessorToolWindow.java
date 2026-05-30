@@ -85,6 +85,7 @@ public class DataPreprocessorToolWindow {
                 this::onApplied,           // preview update after Apply
                 this::onCodeGenerated,     // code tab update after Generate
                 this::onRCodeGenerated,
+                this::onSqlCodeGenerated,
                 this::getSourcePath,
                 this::setStatus,
                 this::onStepCountChanged); // tab badge update
@@ -99,13 +100,19 @@ public class DataPreprocessorToolWindow {
     // =========================================================================
 
     /**
-     * Loads a new dataset: resets all panels, profiles columns, jumps to Preview.
-     * Called by {@link com.datapreprocessor.actions.OpenDataFileAction} and the
-     * Browse button.
+     * Loads a new dataset using pre-computed column profiles.
+     *
+     * <p>This is the primary entry point.  Both the Browse button ({@link #browseAndLoad})
+     * and {@link com.datapreprocessor.actions.OpenDataFileAction} compute profiles on a
+     * background thread and call this overload so that the potentially O(n·columns)
+     * profiling work never blocks the EDT.</p>
+     *
+     * @param ds       the freshly loaded dataset
+     * @param profiles column profiles already computed off the EDT
      */
-    public void loadDataSet(DataSet ds) {
+    public void loadDataSet(DataSet ds, List<ColumnProfile> profiles) {
         currentDataSet = ds;
-        columnProfiles = new DataCleaner().profileColumns(ds);
+        columnProfiles = profiles;
 
         String fullPath = ds.getFilePath();
         String fileName = new java.io.File(fullPath).getName();
@@ -131,6 +138,17 @@ public class DataPreprocessorToolWindow {
         ReviewPromptService.recordUseAndMaybePrompt(project);
     }
 
+    /**
+     * Convenience overload for callers that cannot supply pre-computed profiles.
+     *
+     * <p><b>Warning:</b> {@link DataCleaner#profileColumns} is O(n·columns) and runs
+     * on the calling thread.  Prefer {@link #loadDataSet(DataSet, List)} and compute
+     * profiles in a {@link SwingWorker#doInBackground()} block.</p>
+     */
+    public void loadDataSet(DataSet ds) {
+        loadDataSet(ds, new DataCleaner().profileColumns(ds));
+    }
+
     public DataSet getCurrentDataSet()   { return currentDataSet; }
 
     /** Returns the pending pipeline steps — used by GeneratePreprocessingCodeAction. */
@@ -152,7 +170,7 @@ public class DataPreprocessorToolWindow {
         tabs.addTab("📊 Preview",           previewPanel.getContent());
         tabs.addTab("📋 Column Profiles",   profilePanel.getContent());
         tabs.addTab("🧹 Clean & Transform", cleanContent);
-        tabs.addTab("🐍 Generated Code",    codePanel.getContent());
+        tabs.addTab("💻 Generated Code",    codePanel.getContent());
         tabs.addTab("📈 Visualise", visualisationPanel.getContent());
         tabs.addChangeListener(e -> {
             if (tabs.getSelectedComponent() == cleanContent) {
@@ -184,17 +202,20 @@ public class DataPreprocessorToolWindow {
                         })
                         .withTitle("Open Data File")
                         .withDescription("Select a CSV, Excel, or JSON file");
-        descriptor.setForcedToUseIdeaFileChooser(true);
 
         FileChooser.chooseFile(descriptor, project, root, null, file -> {
             if (file == null) return;
-            SwingWorker<DataSet, Void> worker = new SwingWorker<>() {
-                @Override protected DataSet doInBackground() throws IOException {
-                    return new DataLoader().load(file.getPath());
+            // Both file I/O and column profiling are O(n) — keep both off the EDT.
+            SwingWorker<ReloadResult, Void> worker = new SwingWorker<>() {
+                @Override protected ReloadResult doInBackground() throws IOException {
+                    DataSet ds = new DataLoader().load(file.getPath());
+                    List<ColumnProfile> profiles = new DataCleaner().profileColumns(ds);
+                    return new ReloadResult(ds, profiles);
                 }
                 @Override protected void done() {
                     try {
-                        loadDataSet(get());
+                        ReloadResult result = get();
+                        loadDataSet(result.dataSet(), result.profiles());
                     } catch (Exception ex) {
                         Messages.showErrorDialog(project,
                                 "Could not load file:\n" + ex.getMessage(),
@@ -273,15 +294,24 @@ public class DataPreprocessorToolWindow {
      */
     private void onApplied(DataSet cleaned) {
         previewPanel.showData(cleaned);
+        profilePanel.showLoading();
         tabs.setSelectedIndex(0); // jump to Preview immediately — don't wait for profiling
+        setStatus("Applied. Refreshing cleaned column profiles…");
 
         new SwingWorker<List<ColumnProfile>, Void>() {
             @Override protected List<ColumnProfile> doInBackground() {
                 return new DataCleaner().profileColumns(cleaned);
             }
             @Override protected void done() {
-                try { visualisationPanel.onDataSetLoaded(cleaned, get()); }
-                catch (Exception ignored) {}
+                try {
+                    List<ColumnProfile> cleanedProfiles = get();
+                    columnProfiles = cleanedProfiles;
+                    profilePanel.refresh(cleanedProfiles);
+                    visualisationPanel.onDataSetLoaded(cleaned, cleanedProfiles);
+                }
+                catch (Exception ex) {
+                    setStatus("Applied, but profile refresh failed: " + ex.getMessage());
+                }
             }
         }.execute();
     }
@@ -297,6 +327,11 @@ public class DataPreprocessorToolWindow {
 
     private void onRCodeGenerated(String code) {
         codePanel.setCode(code, "R");
+        tabs.setSelectedIndex(3); // jump to Generated Code tab
+    }
+
+    private void onSqlCodeGenerated(String code) {
+        codePanel.setCode(code, "sql");
         tabs.setSelectedIndex(3); // jump to Generated Code tab
     }
 

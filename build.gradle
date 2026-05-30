@@ -47,12 +47,14 @@ patchPluginXml {
     untilBuild = ""
     changeNotes = """
         <ul>
-          <li><b>1.6.0</b> — Column visualisations: new <b>📈 Visualise</b> tab renders a
+          <li><b>1.6.0</b> — Column visualisations and SQL generation: new <b>📈 Visualise</b> tab renders a
               histogram or box plot for every numeric column. Select a column from the left
               list, toggle between chart types, and scroll/zoom the chart with the mouse wheel.
               Charts update automatically after <i>Apply steps</i> so you can inspect the
               effect of normalization, outlier removal, and scaling visually without leaving
-              the IDE. Powered by JFreeChart.</li>
+              the IDE. Powered by JFreeChart. The Clean tab can now generate PostgreSQL-style
+              SQL CTE templates alongside Python and R scripts, with .sql save support in the
+              Generated Code tab.</li>
           <li><b>1.5.6</b> — Compatibility: minimum supported IDE bumped from
               IntelliJ 2023.3 (build 233) to 2024.3 (build 243). The plugin is
               compiled against the 2024.3 SDK and uses APIs introduced after

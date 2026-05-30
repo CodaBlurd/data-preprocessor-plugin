@@ -13,7 +13,7 @@
         directly inside your JetBrains IDE.</p>
 
         <p>Load a <b>CSV, Excel (.xlsx), or JSON</b> file, profile your data instantly, handle missing values,
-        remove duplicates and outliers, normalize columns, and generate ready-to-run <b>Python (pandas) or R</b>
+        remove duplicates and outliers, normalize columns, and generate ready-to-run <b>Python (pandas), R, or SQL</b>
         code from your workflow — all without leaving the IDE.</p>
 
         <b>Key features:</b>
@@ -31,6 +31,7 @@
           <li><b>Filter Rows</b> — keep only rows matching a condition (==, !=, &gt;, &lt;, &gt;=, &lt;=, contains)</li>
           <li><b>Python Code Generation</b> — one click produces a complete, ready-to-run pandas script</li>
           <li><b>R Code Generation</b> — one click produces an equivalent base-R script; readxl / jsonlite / fastDummies imported only when needed</li>
+          <li><b>SQL Code Generation</b> — one click produces a PostgreSQL-style CTE template for database-side preprocessing</li>
           <li><b>Undo / Redo</b> — step back and forward through pipeline edits without losing work</li>
           <li><b>Export cleaned CSV</b> — choose where to save the transformed dataset via a file dialog</li>
           <li><b>Copy cleaned data as TSV</b> — paste applied results directly into Excel or Google Sheets</li>

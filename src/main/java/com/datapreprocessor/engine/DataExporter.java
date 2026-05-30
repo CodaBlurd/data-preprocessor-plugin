@@ -12,7 +12,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
- * Writes a {@link DataSet} or a Python script to disk.
+ * Writes a {@link DataSet} or a generated script to disk.
  */
 public class DataExporter {
 
@@ -96,6 +96,18 @@ public class DataExporter {
         int dot = name.lastIndexOf('.');
         String stem = (dot > 0) ? name.substring(0, dot) : name;
         return p.getParent().resolve("preprocess_" + stem + ".R").toString();
+    }
+
+    /**
+     * Derives a SQL script path from the original data file path.
+     * e.g. {@code /data/employees.csv} → {@code /data/preprocess_employees.sql}
+     */
+    public static String sqlScriptPath(String originalPath) {
+        Path p    = Paths.get(originalPath);
+        String name = p.getFileName().toString();
+        int dot = name.lastIndexOf('.');
+        String stem = (dot > 0) ? name.substring(0, dot) : name;
+        return p.getParent().resolve("preprocess_" + stem + ".sql").toString();
     }
 
     private static String insertSuffix(String path, String suffix) {
