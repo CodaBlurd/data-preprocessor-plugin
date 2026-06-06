@@ -9,15 +9,14 @@ import com.datapreprocessor.model.ColumnProfile;
 import com.datapreprocessor.model.ColumnProfile.DataType;
 import com.datapreprocessor.model.DataSet;
 import com.datapreprocessor.settings.DataPreprocessorSettings;
+import com.intellij.openapi.fileChooser.*;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.ComboBox;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.openapi.fileChooser.FileChooserFactory;
-import com.intellij.openapi.fileChooser.FileSaverDescriptor;
-import com.intellij.openapi.fileChooser.FileSaverDialog;
 import com.intellij.openapi.vfs.VirtualFileWrapper;
+import com.intellij.ui.components.JBList;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.ui.JBUI;
 
@@ -62,6 +61,7 @@ class CleanPanel {
     private final Supplier<String>   getSourcePath;
     private final Consumer<String>   onStatus;
     private final Consumer<Integer>  onStepCountChanged;
+    private final PipelineFileActions pipelineFileActions;
 
     // ── Pipeline state ────────────────────────────────────────────────────────
     private final List<PreprocessingStep>  pendingSteps      = new ArrayList<>();
@@ -112,7 +112,7 @@ class CleanPanel {
     private final ComboBox<String> filterOperatorBox  = new ComboBox<>(
             new String[]{ "==", "!=", ">", "<", ">=", "<=", "contains" });
     private final JTextField       filterValueField   = new JTextField(10);
-    private final JList<String>    stepList           = new JList<>(stepListModel);
+    private final JList<String>    stepList           = new JBList<>(stepListModel);
 
     // Kept as fields so they can be enabled / disabled dynamically
     // ── Action bar (bottom) ───────────────────────────────────────────────────
@@ -132,6 +132,8 @@ class CleanPanel {
     private JButton clearBtn;
     private JButton undoBtn;
     private JButton redoBtn;
+    private JButton importPipelineBtn;
+    private JButton exportPipelineBtn;
 
 
     // ── Constructor ───────────────────────────────────────────────────────────
@@ -154,6 +156,7 @@ class CleanPanel {
         this.getSourcePath       = getSourcePath;
         this.onStatus            = onStatus;
         this.onStepCountChanged  = onStepCountChanged;
+        this.pipelineFileActions = new PipelineFileActions(project, getSourcePath, onStatus);
 
         DataPreprocessorSettings settings = DataPreprocessorSettings.getInstance();
         splitRatioField.setText(String.valueOf(settings.getDefaultTrainRatio()));
@@ -325,6 +328,8 @@ class CleanPanel {
         clearBtn    = new JButton("Clear all");
         undoBtn     = new JButton("Undo");
         redoBtn     = new JButton("Redo");
+        importPipelineBtn = new JButton("Import Pipeline");
+        exportPipelineBtn = new JButton("Export Pipeline");
 
         moveUpBtn.addActionListener(e -> {
             int sel = stepList.getSelectedIndex();
@@ -376,12 +381,19 @@ class CleanPanel {
         undoBtn.setEnabled(false);
         redoBtn.setEnabled(false);
 
+        importPipelineBtn.addActionListener(e -> pipelineFileActions.importPipeline(
+                new ArrayList<>(actualColumnNames),
+                this::importPipelineSteps));
+        exportPipelineBtn.addActionListener(e -> pipelineFileActions.exportPipeline(pendingSteps));
+
         mgmt.add(moveUpBtn);
         mgmt.add(moveDownBtn);
         mgmt.add(removeBtn);
         mgmt.add(clearBtn);
         mgmt.add(undoBtn);
         mgmt.add(redoBtn);
+        mgmt.add(importPipelineBtn);
+        mgmt.add(exportPipelineBtn);
         panel.add(mgmt, BorderLayout.SOUTH);
         return panel;
     }
@@ -626,11 +638,9 @@ class CleanPanel {
 
         FileSaverDialog dialog = FileChooserFactory.getInstance().createSaveFileDialog(descriptor, project);
 
-        // Refresh the parent dir into the VFS before opening the dialog so the
-        // dialog can navigate to it. refreshAndFindFileByPath is safer than
-        // findFileByNioFile because it forces a VFS refresh even for unindexed paths.
         VirtualFile parentVf = LocalFileSystem.getInstance()
-                .refreshAndFindFileByNioFile(defaultOutput.getParent());
+                .findFileByNioFile(defaultOutput.getParent());
+        if (parentVf == null) parentVf = defaultOutputDirectory();
 
         VirtualFileWrapper selected = dialog.save(parentVf, defaultOutput.getFileName().toString());
 
@@ -688,6 +698,20 @@ class CleanPanel {
         if (clearBtn    != null) clearBtn.setEnabled(hasSteps && idle);
         if (undoBtn     != null) undoBtn.setEnabled(!undoStack.isEmpty() && idle);
         if (redoBtn     != null) redoBtn.setEnabled(!redoStack.isEmpty() && idle);
+        if (importPipelineBtn != null) importPipelineBtn.setEnabled(idle);
+        if (exportPipelineBtn != null) exportPipelineBtn.setEnabled(hasSteps && idle);
+    }
+
+    private VirtualFile defaultOutputDirectory() {
+        String sourcePath = getSourcePath.get();
+        if (sourcePath != null) {
+            Path parent = Paths.get(sourcePath).getParent();
+            if (parent != null) {
+                VirtualFile sourceParent = LocalFileSystem.getInstance().findFileByNioFile(parent);
+                if (sourceParent != null) return sourceParent;
+            }
+        }
+        return project.getBaseDir();
     }
 
 
@@ -734,6 +758,12 @@ class CleanPanel {
         restorePipeline(redoStack.remove(redoStack.size() - 1));
         pipelineChanged();
         onStatus.accept("Redo complete. Total: " + pendingSteps.size());
+    }
+
+    private void importPipelineSteps(List<PreprocessingStep> steps) {
+        recordPipelineEdit();
+        restorePipeline(steps);
+        pipelineChanged();
     }
 
     private void restorePipeline(List<PreprocessingStep> steps) {
@@ -824,13 +854,26 @@ class CleanPanel {
             return;
         }
 
-        String tsv = toTsv(cleanedDataSet);
+        DataSet snapshot = cleanedDataSet.shallowCopy();
+        int rows = snapshot.getRowCount();
+        onStatus.accept("Copying TSV…");
 
-        Toolkit.getDefaultToolkit()
-                .getSystemClipboard()
-                .setContents(new StringSelection(tsv), null);
+        new SwingWorker<String, Void>() {
+            @Override protected String doInBackground() {
+                return toTsv(snapshot);
+            }
 
-        onStatus.accept("Copied " + cleanedDataSet.getRowCount() + " rows as TSV.");
+            @Override protected void done() {
+                try {
+                    Toolkit.getDefaultToolkit()
+                            .getSystemClipboard()
+                            .setContents(new StringSelection(get()), null);
+                    onStatus.accept("Copied " + rows + " rows as TSV.");
+                } catch (Exception ex) {
+                    onStatus.accept("Copy TSV failed: " + ex.getMessage());
+                }
+            }
+        }.execute();
     }
 
 
