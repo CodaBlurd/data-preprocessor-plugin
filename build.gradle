@@ -48,6 +48,14 @@ patchPluginXml {
     untilBuild = ""
     changeNotes = """
         <ul>
+          <li><b>1.7.0</b> — Pipeline import/export: the Clean tab can now save
+              preprocessing steps as .dpp JSON files and import saved .dpp pipelines
+              back into the pipeline list. Imported pipelines warn when a step
+              references a column missing from the current dataset. The pipeline
+              controls were split into two rows so Import Pipeline and Export
+              Pipeline remain visible in narrow tool-window widths, and .dpp
+              read/write, VFS refresh, and imported-column validation all run in
+              background workers.</li>
           <li><b>1.6.0</b> — Column visualisations and SQL generation: new <b>📈 Visualise</b> tab renders a
               histogram or box plot for every numeric column. Select a column from the left
               list, toggle between chart types, and scroll/zoom the chart with the mouse wheel.

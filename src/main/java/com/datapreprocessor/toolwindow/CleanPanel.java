@@ -321,7 +321,9 @@ class CleanPanel {
         stepList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         panel.add(new JBScrollPane(stepList), BorderLayout.CENTER);
 
-        JPanel mgmt = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
+        JPanel mgmt = new JPanel(new BorderLayout(0, 2));
+        JPanel editControls = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
+        JPanel fileControls = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
         moveUpBtn   = new JButton("↑ Up");
         moveDownBtn = new JButton("↓ Down");
         removeBtn   = new JButton("Remove");
@@ -330,6 +332,8 @@ class CleanPanel {
         redoBtn     = new JButton("Redo");
         importPipelineBtn = new JButton("Import Pipeline");
         exportPipelineBtn = new JButton("Export Pipeline");
+        importPipelineBtn.setToolTipText("Load a saved .dpp preprocessing pipeline.");
+        exportPipelineBtn.setToolTipText("Save the current pipeline as a .dpp file. Add at least one step to enable this.");
 
         moveUpBtn.addActionListener(e -> {
             int sel = stepList.getSelectedIndex();
@@ -386,14 +390,16 @@ class CleanPanel {
                 this::importPipelineSteps));
         exportPipelineBtn.addActionListener(e -> pipelineFileActions.exportPipeline(pendingSteps));
 
-        mgmt.add(moveUpBtn);
-        mgmt.add(moveDownBtn);
-        mgmt.add(removeBtn);
-        mgmt.add(clearBtn);
-        mgmt.add(undoBtn);
-        mgmt.add(redoBtn);
-        mgmt.add(importPipelineBtn);
-        mgmt.add(exportPipelineBtn);
+        editControls.add(moveUpBtn);
+        editControls.add(moveDownBtn);
+        editControls.add(removeBtn);
+        editControls.add(clearBtn);
+        editControls.add(undoBtn);
+        editControls.add(redoBtn);
+        fileControls.add(importPipelineBtn);
+        fileControls.add(exportPipelineBtn);
+        mgmt.add(editControls, BorderLayout.NORTH);
+        mgmt.add(fileControls, BorderLayout.SOUTH);
         panel.add(mgmt, BorderLayout.SOUTH);
         return panel;
     }

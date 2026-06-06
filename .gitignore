@@ -31,3 +31,6 @@ setup-github-project.sh
 
 # Marketing / launch post drafts (kept locally, not in source)
 release-posts-*.md
+
+# Sample data
+sample-data/

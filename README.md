@@ -17,7 +17,7 @@
 
 ## What It Does
 
-Data Preprocessor brings your data-cleaning workflow directly into IntelliJ IDEA. Load CSV, Excel, or JSON data, profile every column, apply transformations through a point-and-click UI, and generate ready-to-run **Python, R, or SQL** from the same pipeline — all without leaving the IDE.
+Data Preprocessor brings your data-cleaning workflow directly into IntelliJ IDEA. Load CSV, Excel, or JSON data, profile every column, apply reusable `.dpp` transformation pipelines through a point-and-click UI, and generate ready-to-run **Python, R, or SQL** from the same pipeline — all without leaving the IDE.
 
 | Tab | What you get |
 |-----|-------------|
@@ -53,7 +53,7 @@ Visit [plugins.jetbrains.com/plugin/31226-data-preprocessor](https://plugins.jet
 - **Outlier removal** — IQR fence method (1.5 × IQR) to drop statistical outliers
 - **Normalization** — Min-Max scaling [0, 1], Z-Score standardisation (mean=0, std=1), or Robust Scaler using median/IQR
 - **Type casting** — cast any column to int, float, boolean, or string
-- **Pipeline editing** — reorder, remove, clear, undo, and redo cleaning steps before applying them
+- **Pipeline editing and reuse** — reorder, remove, clear, undo, redo, import, and export cleaning pipelines as `.dpp` JSON
 - **Python code generation** — one click produces a complete, ready-to-run `pandas` script that mirrors every cleaning step you applied
 - **R code generation** — one click produces an equivalent base-R script; `readxl`, `jsonlite`, and `fastDummies` imported only when needed
 - **SQL code generation** — one click produces a PostgreSQL-style CTE template for database-side preprocessing
@@ -106,6 +106,12 @@ Visit [plugins.jetbrains.com/plugin/31226-data-preprocessor](https://plugins.jet
 
 The **Code** tab populates with generated code for the selected language. Use **Save as script…** to choose a destination and open it in the editor, or copy and paste it into your notebook or database console.
 
+### Reusing pipelines
+
+- **Export Pipeline** — saves the current cleaning steps as a `.dpp` JSON file
+- **Import Pipeline** — loads a saved `.dpp` file back into the Clean tab
+- Imported pipelines warn when a step references a column that is not present in the currently loaded dataset
+
 ### Exporting results
 
 - **📤 Export cleaned CSV** — opens a save dialog and writes the applied result as CSV
@@ -128,12 +134,15 @@ Open **Settings → Tools → Data Preprocessor** to configure:
 src/main/java/com/datapreprocessor/
 ├── model/
 │   ├── DataSet.java                             # In-memory tabular data model
-│   └── ColumnProfile.java                       # Per-column statistics
+│   ├── ColumnProfile.java                       # Per-column statistics
+│   └── PipelineDocument.java                    # Serializable .dpp pipeline document
 ├── engine/
 │   ├── DataLoader.java                          # CSV → DataSet (Apache Commons CSV)
 │   ├── DataCleaner.java                         # All cleaning & transformation logic
 │   ├── CodeGenerator.java                       # Generates Python, R, and SQL code
 │   ├── DataChartFactory.java                    # JFreeChart histogram and box plot factory
+│   ├── PipelineSerializer.java                  # Reads/writes .dpp pipeline JSON
+│   ├── PipelineValidator.java                   # Validates imported pipeline column references
 │   └── DataExporter.java                        # CSV and .py / .R / .sql file export
 ├── settings/
 │   ├── DataPreprocessorSettings.java            # Persistent plugin settings
@@ -148,6 +157,7 @@ src/main/java/com/datapreprocessor/
     ├── PreviewPanel.java                        # Tab 1 — raw data table
     ├── ProfilePanel.java                        # Tab 2 — per-column statistics
     ├── CleanPanel.java                          # Tab 3 — pipeline builder + actions
+    ├── PipelineFileActions.java                 # Import/export .dpp file workflow
     ├── CodePanel.java                           # Tab 4 — generated code viewer
     └── VisualisationPanel.java                  # Tab 5 — histogram / box plot per column
 ```

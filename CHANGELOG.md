@@ -7,6 +7,30 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.7.0] — 2026-06-06
+
+### Added
+- **Pipeline import/export** — the Clean tab can now save the current preprocessing steps as
+  a `.dpp` JSON pipeline and import saved `.dpp` files back into the pipeline list. Imported
+  pipelines warn when a step references a column missing from the currently loaded dataset.
+- **Pipeline persistence internals** — added `PipelineSerializer`, `PipelineValidator`,
+  `PipelineDocument`, and `PipelineFileActions` so `.dpp` parsing, validation, and IntelliJ
+  file-dialog workflow stay separate from `CleanPanel`.
+
+### Fixed
+- **Pipeline import/export controls could be clipped** — Import Pipeline and Export Pipeline
+  now render on their own controls row below the pipeline edit buttons, so Export remains
+  visible in narrow tool-window widths.
+- **Pipeline file I/O stays off the EDT** — `.dpp` read/write, VFS refresh, and imported
+  column validation run inside background workers. The Clean tab only updates Swing state in
+  worker completion callbacks.
+
+### Tests
+- Added serializer and validator coverage for `.dpp` round-trip, invalid JSON, unknown
+  operations, missing `steps`, and missing-column warnings.
+
+---
+
 ## [1.6.0] — 2026-05-30
 
 ### Added
