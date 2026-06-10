@@ -17,15 +17,15 @@
 
 ## What It Does
 
-Data Preprocessor brings your data-cleaning workflow directly into IntelliJ IDEA. Load CSV, Excel, or JSON data, profile every column, apply reusable `.dpp` transformation pipelines through a point-and-click UI, and generate ready-to-run **Python, R, or SQL** from the same pipeline — all without leaving the IDE.
+Data Preprocessor brings your data-cleaning workflow directly into IntelliJ IDEA. Load CSV, Excel, or JSON data, profile every column, build point-and-click cleaning pipelines, and generate ready-to-run **Python** scripts from the same workflow. Pro unlocks reusable `.dpp` pipelines plus **R** and **SQL** generation — all without leaving the IDE.
 
 | Tab | What you get |
 |-----|-------------|
 | **Preview** | Configurable table preview of your loaded dataset |
 | **Profile** | Per-column stats: type, null count, unique values, mean, median, std, min, max, mode |
 | **Clean** | Point-and-click operations that build a reproducible, editable pipeline |
-| **Code** | Auto-generated Python, R, or SQL — save anywhere as `.py`, `.R`, or `.sql`, or copy to clipboard |
-| **Visualise** | Histogram and box plot per numeric column; charts update after every Apply |
+| **Code** | Auto-generated Python, R [Pro], or SQL [Pro] — save anywhere as `.py`, `.R`, or `.sql`, or copy to clipboard |
+| **Visualise [Pro]** | Histogram and box plot per numeric column; charts update after every Apply |
 
 ---
 
@@ -53,14 +53,14 @@ Visit [plugins.jetbrains.com/plugin/31226-data-preprocessor](https://plugins.jet
 - **Outlier removal** — IQR fence method (1.5 × IQR) to drop statistical outliers
 - **Normalization** — Min-Max scaling [0, 1], Z-Score standardisation (mean=0, std=1), or Robust Scaler using median/IQR
 - **Type casting** — cast any column to int, float, boolean, or string
-- **Regex replace rules** — clean text columns with custom pattern-based find/replace, including `$1`, `$2` capture groups
-- **Pipeline editing and reuse** — reorder, remove, clear, undo, redo, import, and export cleaning pipelines as `.dpp` JSON
-- **Multi-file batch mode** — apply the current pipeline to many CSV, Excel, or JSON files and export `_cleaned.csv` outputs beside each source file
+- **Regex replace rules [Pro]** — clean text columns with custom pattern-based find/replace, including `$1`, `$2` capture groups
+- **Pipeline editing and reuse** — reorder, remove, clear, undo, redo, and use Pro import/export for `.dpp` JSON pipelines
+- **Multi-file batch mode [Pro]** — apply the current pipeline to many CSV, Excel, or JSON files and export `_cleaned.csv` outputs beside each source file
 - **Python code generation** — one click produces a complete, ready-to-run `pandas` script that mirrors every cleaning step you applied
-- **R code generation** — one click produces an equivalent base-R script; `readxl`, `jsonlite`, and `fastDummies` imported only when needed
-- **SQL code generation** — one click produces a PostgreSQL-style CTE template for database-side preprocessing
-- **Column visualisations** — new Visualise tab renders a histogram or box plot for every numeric column; charts update automatically after Apply so you can see the effect of normalization or outlier removal instantly
-- **Save as .py / .R / .sql** — choose where to save generated code; it opens directly in the IntelliJ editor
+- **R code generation [Pro]** — one click produces an equivalent base-R script; `readxl`, `jsonlite`, and `fastDummies` imported only when needed
+- **SQL code generation [Pro]** — one click produces a PostgreSQL-style CTE template for database-side preprocessing
+- **Column visualisations [Pro]** — Visualise tab renders a histogram or box plot for every numeric column; charts update automatically after Apply so you can see the effect of normalization or outlier removal instantly
+- **Save generated code** — choose where to save generated `.py`, Pro `.R`, or Pro `.sql` code; it opens directly in the IntelliJ editor
 - **Export cleaned CSV** — choose where to save the cleaned dataset
 - **Copy cleaned data as TSV** — copy the applied result for direct paste into Excel or Google Sheets
 - **Settings page** — configure preview row limit, default normalization operation, and default train/test ratio under **Settings → Tools → Data Preprocessor**
@@ -104,20 +104,21 @@ Visit [plugins.jetbrains.com/plugin/31226-data-preprocessor](https://plugins.jet
 3. Repeat for as many steps as needed
 4. Reorder steps with **↑ Up** / **↓ Down**, or use **Undo** / **Redo** while editing
 5. Click **▶ Apply steps** to preview the cleaned result
-6. Click **🐍 Generate Python code**, **🔵 Generate R code**, or **🗄 Generate SQL code**
+6. Click **🐍 Generate Python code**, **🔵 Generate R code [Pro]**, or **🗄 Generate SQL code [Pro]**
 
-The **Code** tab populates with generated code for the selected language. Use **Save as script…** to choose a destination and open it in the editor, or copy and paste it into your notebook or database console.
+The **Code** tab populates with generated code for the selected language. Use **Save as script…** to choose a destination and open it in the editor, or copy and paste it into your notebook, R session, or database console.
 
 ### Reusing pipelines
 
-- **Export Pipeline** — saves the current cleaning steps as a `.dpp` JSON file
-- **Import Pipeline** — loads a saved `.dpp` file back into the Clean tab
+- **Export Pipeline [Pro]** — saves the current cleaning steps as a `.dpp` JSON file
+- **Import Pipeline [Pro]** — loads a saved `.dpp` file back into the Clean tab
 - Imported pipelines warn when a step references a column that is not present in the currently loaded dataset
 
 ### Batch processing files
 
-- Build or import a cleaning pipeline in the **Clean** tab
-- Click **Batch process files**
+- Batch processing is a Pro feature.
+- Build a cleaning pipeline from a sample dataset, or import a saved `.dpp` pipeline before loading data
+- Click **Batch process with this pipeline**
 - Select multiple `.csv`, `.xlsx`, or `.json` files
 - Each compatible file is loaded in the background, transformed with the current pipeline, and exported beside the source as `<filename>_cleaned.csv`
 - Files missing required pipeline columns are skipped and reported in the batch summary
@@ -126,7 +127,7 @@ The **Code** tab populates with generated code for the selected language. Use **
 
 - **📤 Export cleaned CSV** — opens a save dialog and writes the applied result as CSV
 - **Copy cleaned data as TSV** — copies headers and cleaned rows for spreadsheet paste
-- **Save as script…** — opens a save dialog for `preprocess_<filename>.py`, `.R`, or `.sql` and opens it in the editor automatically
+- **Save as script…** — opens a save dialog for `preprocess_<filename>.py`, Pro `.R`, or Pro `.sql` output and opens it in the editor automatically
 
 ### Settings
 
@@ -135,6 +136,10 @@ Open **Settings → Tools → Data Preprocessor** to configure:
 - **Preview row limit** — limits how many rows the Preview tab renders
 - **Default normalization** — selects the default normalization operation in the Clean tab
 - **Default train/test ratio** — pre-fills the Train / Test split ratio field
+
+### Pro licensing
+
+Pro features are guarded with JetBrains Marketplace licensing. The plugin descriptor declares the Marketplace product code `PDATAPREPROCESS`; confirm this matches the Product Code assigned in JetBrains Marketplace before uploading a release.
 
 ---
 

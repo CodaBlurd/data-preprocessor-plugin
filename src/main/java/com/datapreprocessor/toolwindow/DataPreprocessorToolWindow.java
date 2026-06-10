@@ -3,6 +3,8 @@ package com.datapreprocessor.toolwindow;
 import com.datapreprocessor.engine.CodeGenerator;
 import com.datapreprocessor.engine.DataCleaner;
 import com.datapreprocessor.engine.DataLoader;
+import com.datapreprocessor.licensing.ProFeature;
+import com.datapreprocessor.licensing.ProFeatureGate;
 import com.datapreprocessor.model.ColumnProfile;
 import com.datapreprocessor.model.DataSet;
 import com.intellij.openapi.fileChooser.FileChooser;
@@ -171,7 +173,7 @@ public class DataPreprocessorToolWindow {
         tabs.addTab("📋 Column Profiles",   profilePanel.getContent());
         tabs.addTab("🧹 Clean & Transform", cleanContent);
         tabs.addTab("💻 Generated Code",    codePanel.getContent());
-        tabs.addTab("📈 Visualise", visualisationPanel.getContent());
+        tabs.addTab("📈 Visualise  [Pro]", visualiseTabContent());
         tabs.addChangeListener(e -> {
             if (tabs.getSelectedComponent() == cleanContent) {
                 cleanPanel.refreshSettingsDefaults();
@@ -184,6 +186,22 @@ public class DataPreprocessorToolWindow {
                 BorderFactory.createMatteBorder(1, 0, 0, 0, JBColor.border()),
                 BorderFactory.createEmptyBorder(2, 6, 2, 6)));
         root.add(statusLabel, BorderLayout.SOUTH);
+    }
+
+    private JComponent visualiseTabContent() {
+        if (ProFeatureGate.isUnlocked(ProFeature.VISUALISATIONS)) {
+            return visualisationPanel.getContent();
+        }
+
+        JPanel panel = new JPanel(new BorderLayout());
+        JLabel message = new JLabel(
+                "<html><center><b>" + ProFeatureGate.lockedMessage(ProFeature.VISUALISATIONS) + "</b><br><br>"
+                        + ProFeatureGate.unlockHint() + "</center></html>",
+                SwingConstants.CENTER
+        );
+        message.setForeground(JBColor.GRAY);
+        panel.add(message, BorderLayout.CENTER);
+        return panel;
     }
 
     // =========================================================================
@@ -202,6 +220,7 @@ public class DataPreprocessorToolWindow {
                         })
                         .withTitle("Open Data File")
                         .withDescription("Select a CSV, Excel, or JSON file");
+        descriptor.setForcedToUseIdeaFileChooser(true);
 
         FileChooser.chooseFile(descriptor, project, root, null, file -> {
             if (file == null) return;

@@ -10,6 +10,8 @@ import com.datapreprocessor.engine.PipelineExecutor;
 import com.datapreprocessor.engine.RegexRuleCodec;
 import com.datapreprocessor.engine.CodeGenerator.Operation;
 import com.datapreprocessor.engine.CodeGenerator.PreprocessingStep;
+import com.datapreprocessor.licensing.ProFeature;
+import com.datapreprocessor.licensing.ProFeatureGate;
 import com.datapreprocessor.model.ColumnProfile;
 import com.datapreprocessor.model.ColumnProfile.DataType;
 import com.datapreprocessor.model.DataSet;
@@ -109,7 +111,7 @@ class CleanPanel {
             "Sort column…",                        // 13
             "Filter rows by condition",            // 14
             "Normalize: Robust Scaler",            // 15
-            "Regex replace values"                 // 16
+            "Regex replace values  [Pro]"          // 16
     });
     private final ComboBox<String> colSelector       = new ComboBox<>();
     private final JTextField       customValueField   = new JTextField(10);
@@ -349,6 +351,9 @@ class CleanPanel {
         panel.setBorder(BorderFactory.createTitledBorder("2.  Pipeline steps  (applied top → bottom)"));
 
         stepList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        JLabel help = new JLabel("Load a sample dataset to build a pipeline, or import a .dpp pipeline to batch process files.");
+        help.setBorder(JBUI.Borders.empty(0, 4, 4, 4));
+        panel.add(help, BorderLayout.NORTH);
         panel.add(new JBScrollPane(stepList), BorderLayout.CENTER);
 
         JPanel mgmt = new JPanel(new BorderLayout(0, 2));
@@ -360,10 +365,10 @@ class CleanPanel {
         clearBtn    = new JButton("Clear all");
         undoBtn     = new JButton("Undo");
         redoBtn     = new JButton("Redo");
-        importPipelineBtn = new JButton("Import Pipeline");
-        exportPipelineBtn = new JButton("Export Pipeline");
-        importPipelineBtn.setToolTipText("Load a saved .dpp preprocessing pipeline.");
-        exportPipelineBtn.setToolTipText("Save the current pipeline as a .dpp file. Add at least one step to enable this.");
+        importPipelineBtn = new JButton("Import Pipeline  [Pro]");
+        exportPipelineBtn = new JButton("Export Pipeline  [Pro]");
+        importPipelineBtn.setToolTipText("Load a saved .dpp preprocessing pipeline. Pro feature.");
+        exportPipelineBtn.setToolTipText("Save the current pipeline as a .dpp file. Pro feature.");
 
         moveUpBtn.addActionListener(e -> {
             int sel = stepList.getSelectedIndex();
@@ -415,10 +420,14 @@ class CleanPanel {
         undoBtn.setEnabled(false);
         redoBtn.setEnabled(false);
 
-        importPipelineBtn.addActionListener(e -> pipelineFileActions.importPipeline(
-                new ArrayList<>(actualColumnNames),
-                this::importPipelineSteps));
-        exportPipelineBtn.addActionListener(e -> pipelineFileActions.exportPipeline(pendingSteps));
+        importPipelineBtn.addActionListener(e -> {
+            if (!requireProFeature(ProFeature.PIPELINE_FILES)) return;
+            pipelineFileActions.importPipeline(new ArrayList<>(actualColumnNames), this::importPipelineSteps);
+        });
+        exportPipelineBtn.addActionListener(e -> {
+            if (!requireProFeature(ProFeature.PIPELINE_FILES)) return;
+            pipelineFileActions.exportPipeline(pendingSteps);
+        });
 
         editControls.add(moveUpBtn);
         editControls.add(moveDownBtn);
@@ -450,11 +459,11 @@ class CleanPanel {
         generateBtn.setEnabled(false);
         generateBtn.addActionListener(e -> generateCode());
 
-        generateRBtn = new JButton("🔵  Generate R code");
+        generateRBtn = new JButton("🔵  Generate R code  [Pro]");
         generateRBtn.setEnabled(false);
         generateRBtn.addActionListener(e -> generateRCode());
 
-        generateSqlBtn = new JButton("🗄  Generate SQL code");
+        generateSqlBtn = new JButton("🗄  Generate SQL code  [Pro]");
         generateSqlBtn.setEnabled(false);
         generateSqlBtn.addActionListener(e -> generateSqlCode());
 
@@ -466,9 +475,9 @@ class CleanPanel {
         copyTsvBtn.setEnabled(false);
         copyTsvBtn.addActionListener(e -> copyCleanedTsvToClipboard());
 
-        batchProcessBtn = new JButton("Batch process files");
+        batchProcessBtn = new JButton("Batch process with this pipeline  [Pro]");
         batchProcessBtn.setEnabled(false);
-        batchProcessBtn.setToolTipText("Apply the current pipeline to multiple CSV, Excel, or JSON files.");
+        batchProcessBtn.setToolTipText("Load a sample dataset and add steps, or import a .dpp pipeline, then batch process multiple files.");
         batchProcessBtn.addActionListener(e -> batchProcessFiles());
 
         bar.add(applyBtn);
@@ -516,6 +525,7 @@ class CleanPanel {
             return;
         }
         if (opIdx == 16) {
+            if (!requireProFeature(ProFeature.REGEX_CLEANING)) return;
             if (regexPattern.isEmpty()) {
                 onStatus.accept("Enter a regex pattern before adding this step.");
                 return;
@@ -613,13 +623,10 @@ class CleanPanel {
     }
 
     private void batchProcessFiles() {
-        DataSet ds = getDataSet.get();
-        if (ds == null) {
-            onStatus.accept("Load a dataset first.");
-            return;
-        }
+        if (!requireProFeature(ProFeature.BATCH_PROCESSING)) return;
+
         if (pendingSteps.isEmpty()) {
-            onStatus.accept("Add at least one pipeline step before batch processing.");
+            onStatus.accept("Batch processing needs a pipeline. Load a sample dataset and add steps, or import a saved .dpp pipeline.");
             return;
         }
 
@@ -635,6 +642,7 @@ class CleanPanel {
                 })
                 .withTitle("Choose Files to Batch Process")
                 .withDescription("Apply the current pipeline to multiple CSV, Excel, or JSON files");
+        descriptor.setForcedToUseIdeaFileChooser(true);
 
         FileChooser.chooseFiles(descriptor, project, null, this::processSelectedBatchFiles);
     }
@@ -690,6 +698,8 @@ class CleanPanel {
     }
 
     private void generateRCode() {
+        if (!requireProFeature(ProFeature.R_CODE_GENERATION)) return;
+
         DataSet ds = getDataSet.get();
         if (ds == null)             { onStatus.accept("Load a dataset first."); return; }
         if (pendingSteps.isEmpty()) { onStatus.accept("No steps to generate code for."); return; }
@@ -699,6 +709,8 @@ class CleanPanel {
     }
 
     private void generateSqlCode() {
+        if (!requireProFeature(ProFeature.SQL_CODE_GENERATION)) return;
+
         DataSet ds = getDataSet.get();
         if (ds == null)             { onStatus.accept("Load a dataset first."); return; }
         if (pendingSteps.isEmpty()) { onStatus.accept("No steps to generate code for."); return; }
@@ -780,7 +792,7 @@ class CleanPanel {
         if (generateSqlBtn != null) generateSqlBtn.setEnabled(hasSteps && idle);
         if (exportBtn   != null) exportBtn.setEnabled(hasCleaned && idle);
         if (copyTsvBtn  != null) copyTsvBtn.setEnabled(hasCleaned && idle);
-        if (batchProcessBtn != null) batchProcessBtn.setEnabled(hasSteps && idle);
+        if (batchProcessBtn != null) batchProcessBtn.setEnabled(idle);
         // ── Pipeline management ───────────────────────────────────────────────
         // Locked during Apply so the pipeline cannot be modified mid-flight —
         // if steps were reordered or removed while the worker runs, the exported
@@ -794,6 +806,17 @@ class CleanPanel {
         if (redoBtn     != null) redoBtn.setEnabled(!redoStack.isEmpty() && idle);
         if (importPipelineBtn != null) importPipelineBtn.setEnabled(idle);
         if (exportPipelineBtn != null) exportPipelineBtn.setEnabled(hasSteps && idle);
+    }
+
+    private boolean requireProFeature(ProFeature feature) {
+        if (ProFeatureGate.isUnlocked(feature)) return true;
+
+        String message = ProFeatureGate.lockedMessage(feature);
+        onStatus.accept(message);
+        Messages.showInfoMessage(project,
+                message + "\n\n" + ProFeatureGate.unlockHint(),
+                "Data Preprocessor Pro");
+        return false;
     }
 
     private VirtualFile defaultOutputDirectory() {

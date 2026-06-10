@@ -10,6 +10,15 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [1.8.0] — 2026-06-10
 
 ### Added
+- **JetBrains Marketplace Pro gates** — R generation, SQL generation, Visualise
+  charts, regex cleaning rules, `.dpp` pipeline import/export, and multi-file
+  batch processing now route through a central `ProFeatureGate` backed by the
+  IntelliJ Platform `LicensingFacade`. Locked features remain visible and explain
+  that they require Data Preprocessor Pro.
+- **Marketplace product descriptor** — `plugin.xml` now declares the freemium
+  product descriptor for Data Preprocessor Pro using product code
+  `PDATAPREPROCESS`, release date `20260610`, release version `18`, and
+  `optional=true`.
 - **Multi-file batch mode** — the Clean tab can now apply the current preprocessing
   pipeline to multiple `.csv`, `.xlsx`, or `.json` files in one run. Each successful
   file is exported beside the source as `<filename>_cleaned.csv`.
@@ -18,12 +27,20 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   separate switch logic.
 - **Batch processing internals** — added `BatchProcessor`, per-file result tracking,
   missing-column validation, partial-failure handling, and summary reporting.
+- **Pre-load batch discovery** — the Clean tab now shows batch processing guidance
+  before a dataset is loaded. Users can import a saved `.dpp` pipeline first and
+  then batch process files without opening a sample dataset.
 - **Regex replace cleaning rule** — users can clean text columns with custom regex
   find/replace rules. Replacement values support Java-style `$1`, `$2` capture groups,
   and generated Python/R/SQL scripts translate those replacements to the equivalent
   backslash-group syntax.
 
 ### Fixed
+- **Pro feature discoverability** — gated features are labelled in the UI instead of
+  disappearing, so users can see what is available in Pro without guessing.
+- **Removed local Pro override** — the temporary
+  `datapreprocessor.pro.enabled` / `DATA_PREPROCESSOR_PRO` unlock path was
+  removed so Pro access is controlled by JetBrains Marketplace licensing.
 - **Batch work stays off the EDT** — selected files are loaded, transformed, exported,
   and refreshed from a background worker. The Clean tab disables Apply, Generate,
   Export, Copy TSV, Batch Process, and pipeline editing controls while the worker is
@@ -31,6 +48,8 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Per-file batch failures no longer stop the whole run** — files with unsupported
   types, load/export errors, or missing pipeline columns are reported individually
   while valid files continue processing.
+- **Importing `.dpp` before loading data no longer shows false missing-column warnings** —
+  column validation is deferred when no sample dataset is loaded yet.
 
 ### Tests
 - Added coverage for batch success, missing-column skips, regex replacement behavior,

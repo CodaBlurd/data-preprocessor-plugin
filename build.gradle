@@ -48,6 +48,16 @@ patchPluginXml {
     untilBuild = ""
     changeNotes = """
         <ul>
+          <li><b>1.8.0</b> — Pro tier preparation and batch mode: R code generation,
+              SQL code generation, column visualisations, regex cleaning rules,
+              .dpp pipeline import/export, and multi-file batch processing are now
+              guarded through JetBrains Marketplace licensing. The plugin descriptor
+              declares the freemium Marketplace product descriptor with optional free
+              functionality. Added multi-file batch processing for CSV, Excel, and JSON
+              inputs, pre-load batch guidance, shared pipeline execution for Apply and
+              Batch, regex replace cleaning rules, and generated Python/R/SQL regex
+              snippets. Batch work, .dpp I/O, VFS refresh, and validation stay off the
+              EDT.</li>
           <li><b>1.7.0</b> — Pipeline import/export: the Clean tab can now save
               preprocessing steps as .dpp JSON files and import saved .dpp pipelines
               back into the pipeline list. Imported pipelines warn when a step

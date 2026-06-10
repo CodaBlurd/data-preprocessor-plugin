@@ -95,6 +95,7 @@ class PipelineFileActions {
                 .createSingleFileDescriptor("dpp")
                 .withTitle("Import Data Preprocessor Pipeline")
                 .withDescription("Choose a .dpp pipeline file");
+        descriptor.setForcedToUseIdeaFileChooser(true);
 
         FileChooser.chooseFile(descriptor, project, null, file -> {
             if (file == null) return;
@@ -105,7 +106,9 @@ class PipelineFileActions {
             new SwingWorker<ImportedPipeline, Void>() {
                 @Override protected ImportedPipeline doInBackground() throws Exception {
                     List<PreprocessingStep> steps = serializer.load(Path.of(file.getPath()));
-                    List<String> warnings = validator.validateColumns(steps, columnSnapshot);
+                    List<String> warnings = columnSnapshot.isEmpty()
+                            ? List.of()
+                            : validator.validateColumns(steps, columnSnapshot);
                     return new ImportedPipeline(steps, warnings);
                 }
 
