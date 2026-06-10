@@ -154,7 +154,7 @@ class CodePanel {
         FileSaverDialog dialog = FileChooserFactory.getInstance().createSaveFileDialog(descriptor, project);
 
         VirtualFile parentVf = LocalFileSystem.getInstance()
-                .refreshAndFindFileByNioFile(defaultOutput.getParent());
+                .findFileByNioFile(defaultOutput.getParent());
 
         VirtualFileWrapper selected = dialog.save(parentVf, defaultOutput.getFileName().toString());
 

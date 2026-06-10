@@ -53,7 +53,9 @@ Visit [plugins.jetbrains.com/plugin/31226-data-preprocessor](https://plugins.jet
 - **Outlier removal** — IQR fence method (1.5 × IQR) to drop statistical outliers
 - **Normalization** — Min-Max scaling [0, 1], Z-Score standardisation (mean=0, std=1), or Robust Scaler using median/IQR
 - **Type casting** — cast any column to int, float, boolean, or string
+- **Regex replace rules** — clean text columns with custom pattern-based find/replace, including `$1`, `$2` capture groups
 - **Pipeline editing and reuse** — reorder, remove, clear, undo, redo, import, and export cleaning pipelines as `.dpp` JSON
+- **Multi-file batch mode** — apply the current pipeline to many CSV, Excel, or JSON files and export `_cleaned.csv` outputs beside each source file
 - **Python code generation** — one click produces a complete, ready-to-run `pandas` script that mirrors every cleaning step you applied
 - **R code generation** — one click produces an equivalent base-R script; `readxl`, `jsonlite`, and `fastDummies` imported only when needed
 - **SQL code generation** — one click produces a PostgreSQL-style CTE template for database-side preprocessing
@@ -112,6 +114,14 @@ The **Code** tab populates with generated code for the selected language. Use **
 - **Import Pipeline** — loads a saved `.dpp` file back into the Clean tab
 - Imported pipelines warn when a step references a column that is not present in the currently loaded dataset
 
+### Batch processing files
+
+- Build or import a cleaning pipeline in the **Clean** tab
+- Click **Batch process files**
+- Select multiple `.csv`, `.xlsx`, or `.json` files
+- Each compatible file is loaded in the background, transformed with the current pipeline, and exported beside the source as `<filename>_cleaned.csv`
+- Files missing required pipeline columns are skipped and reported in the batch summary
+
 ### Exporting results
 
 - **📤 Export cleaned CSV** — opens a save dialog and writes the applied result as CSV
@@ -141,6 +151,8 @@ src/main/java/com/datapreprocessor/
 │   ├── DataCleaner.java                         # All cleaning & transformation logic
 │   ├── CodeGenerator.java                       # Generates Python, R, and SQL code
 │   ├── DataChartFactory.java                    # JFreeChart histogram and box plot factory
+│   ├── BatchProcessor.java                      # Applies one pipeline to many files
+│   ├── PipelineExecutor.java                    # Shared pipeline execution for Apply and Batch
 │   ├── PipelineSerializer.java                  # Reads/writes .dpp pipeline JSON
 │   ├── PipelineValidator.java                   # Validates imported pipeline column references
 │   └── DataExporter.java                        # CSV and .py / .R / .sql file export

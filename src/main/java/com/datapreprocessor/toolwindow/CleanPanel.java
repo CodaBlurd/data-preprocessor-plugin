@@ -1,13 +1,19 @@
 package com.datapreprocessor.toolwindow;
 
 import com.datapreprocessor.engine.CodeGenerator;
+import com.datapreprocessor.engine.BatchProcessor;
+import com.datapreprocessor.engine.BatchProcessor.BatchFileResult;
+import com.datapreprocessor.engine.BatchProcessor.BatchSummary;
 import com.datapreprocessor.engine.DataCleaner;
 import com.datapreprocessor.engine.DataExporter;
+import com.datapreprocessor.engine.PipelineExecutor;
+import com.datapreprocessor.engine.RegexRuleCodec;
 import com.datapreprocessor.engine.CodeGenerator.Operation;
 import com.datapreprocessor.engine.CodeGenerator.PreprocessingStep;
 import com.datapreprocessor.model.ColumnProfile;
 import com.datapreprocessor.model.ColumnProfile.DataType;
 import com.datapreprocessor.model.DataSet;
+import com.datapreprocessor.model.RegexRule;
 import com.datapreprocessor.settings.DataPreprocessorSettings;
 import com.intellij.openapi.fileChooser.*;
 import com.intellij.openapi.project.Project;
@@ -30,6 +36,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 /**
  * Tab 3 — Clean &amp; Transform.
@@ -100,7 +108,8 @@ class CleanPanel {
             "One-hot encode column",               // 12
             "Sort column…",                        // 13
             "Filter rows by condition",            // 14
-            "Normalize: Robust Scaler"             // 15
+            "Normalize: Robust Scaler",            // 15
+            "Regex replace values"                 // 16
     });
     private final ComboBox<String> colSelector       = new ComboBox<>();
     private final JTextField       customValueField   = new JTextField(10);
@@ -112,6 +121,8 @@ class CleanPanel {
     private final ComboBox<String> filterOperatorBox  = new ComboBox<>(
             new String[]{ "==", "!=", ">", "<", ">=", "<=", "contains" });
     private final JTextField       filterValueField   = new JTextField(10);
+    private final JTextField       regexPatternField  = new JTextField(10);
+    private final JTextField       regexReplacementField = new JTextField(10);
     private final JList<String>    stepList           = new JBList<>(stepListModel);
 
     // Kept as fields so they can be enabled / disabled dynamically
@@ -122,6 +133,7 @@ class CleanPanel {
     private JButton generateSqlBtn;
     private JButton exportBtn;
     private JButton copyTsvBtn;
+    private JButton batchProcessBtn;
     // ── Pipeline management (middle section) ──────────────────────────────────
     // Must be fields (not buildStepList / buildOperationForm locals) so that
     // updateButtonStates() can disable them during a background Apply run.
@@ -287,6 +299,20 @@ class CleanPanel {
         gbc.gridx = 1; gbc.weightx = 1;
         builder.add(filterValueField, gbc);
 
+        // Optional: regex search pattern
+        JLabel regexPatternLabel = new JLabel("Regex:");
+        gbc.gridx = 0; gbc.gridy = 8; gbc.weightx = 0;
+        builder.add(regexPatternLabel, gbc);
+        gbc.gridx = 1; gbc.weightx = 1;
+        builder.add(regexPatternField, gbc);
+
+        // Optional: regex replacement
+        JLabel regexReplacementLabel = new JLabel("Replacement:");
+        gbc.gridx = 0; gbc.gridy = 9; gbc.weightx = 0;
+        builder.add(regexReplacementLabel, gbc);
+        gbc.gridx = 1; gbc.weightx = 1;
+        builder.add(regexReplacementField, gbc);
+
         // All optional fields hidden by default
         customLabel.setVisible(false);    customValueField.setVisible(false);
         castLabel.setVisible(false);      castTypeBox.setVisible(false);
@@ -294,6 +320,8 @@ class CleanPanel {
         sortLabel.setVisible(false);      sortOrderBox.setVisible(false);
         filterOpLabel.setVisible(false);  filterOperatorBox.setVisible(false);
         filterValLabel.setVisible(false); filterValueField.setVisible(false);
+        regexPatternLabel.setVisible(false); regexPatternField.setVisible(false);
+        regexReplacementLabel.setVisible(false); regexReplacementField.setVisible(false);
 
         opSelector.addActionListener(e -> {
             int idx = opSelector.getSelectedIndex();
@@ -303,11 +331,13 @@ class CleanPanel {
             sortLabel.setVisible(idx == 13);      sortOrderBox.setVisible(idx == 13);
             filterOpLabel.setVisible(idx == 14);  filterOperatorBox.setVisible(idx == 14);
             filterValLabel.setVisible(idx == 14); filterValueField.setVisible(idx == 14);
+            regexPatternLabel.setVisible(idx == 16); regexPatternField.setVisible(idx == 16);
+            regexReplacementLabel.setVisible(idx == 16); regexReplacementField.setVisible(idx == 16);
         });
 
         // Add Step button — full width, below the optional fields
         addBtn = new JButton("➕  Add step to pipeline");
-        gbc.gridx = 0; gbc.gridy = 8; gbc.gridwidth = 2; gbc.weightx = 1;
+        gbc.gridx = 0; gbc.gridy = 10; gbc.gridwidth = 2; gbc.weightx = 1;
         builder.add(addBtn, gbc);
         addBtn.addActionListener(e -> addStep());
 
@@ -405,7 +435,7 @@ class CleanPanel {
     }
 
     private JPanel buildActionBar() {
-        JPanel bar = new JPanel(new GridLayout(6, 1, 0, 4));
+        JPanel bar = new JPanel(new GridLayout(7, 1, 0, 4));
         bar.setBorder(BorderFactory.createEmptyBorder(6, 0, 0, 0));
 
         applyBtn = new JButton("▶   Apply steps  (preview result)");
@@ -436,6 +466,10 @@ class CleanPanel {
         copyTsvBtn.setEnabled(false);
         copyTsvBtn.addActionListener(e -> copyCleanedTsvToClipboard());
 
+        batchProcessBtn = new JButton("Batch process files");
+        batchProcessBtn.setEnabled(false);
+        batchProcessBtn.setToolTipText("Apply the current pipeline to multiple CSV, Excel, or JSON files.");
+        batchProcessBtn.addActionListener(e -> batchProcessFiles());
 
         bar.add(applyBtn);
         bar.add(generateBtn);
@@ -443,6 +477,7 @@ class CleanPanel {
         bar.add(generateSqlBtn);
         bar.add(exportBtn);
         bar.add(copyTsvBtn);
+        bar.add(batchProcessBtn);
         return bar;
     }
 
@@ -464,6 +499,8 @@ class CleanPanel {
         String sortOrder = sortOrderBox.getSelectedIndex() == 0 ? "ascending" : "descending";
         String filterOp  = (String) filterOperatorBox.getSelectedItem();
         String filterVal = filterValueField.getText().trim();
+        String regexPattern = regexPatternField.getText().trim();
+        String regexReplacement = regexReplacementField.getText();
 
         if (opIdx == 10) {
             try {
@@ -477,6 +514,18 @@ class CleanPanel {
         if (opIdx == 14 && filterVal.isEmpty()) {
             onStatus.accept("Enter a filter value before adding this step.");
             return;
+        }
+        if (opIdx == 16) {
+            if (regexPattern.isEmpty()) {
+                onStatus.accept("Enter a regex pattern before adding this step.");
+                return;
+            }
+            try {
+                Pattern.compile(regexPattern);
+            } catch (PatternSyntaxException ex) {
+                onStatus.accept("Invalid regex pattern: " + ex.getDescription());
+                return;
+            }
         }
 
         PreprocessingStep step = switch (opIdx) {
@@ -496,6 +545,8 @@ class CleanPanel {
             case 13 -> new PreprocessingStep(Operation.SORT_COLUMN,         col, sortOrder);
             case 14 -> new PreprocessingStep(Operation.FILTER_ROWS,         col, filterOp + "|" + filterVal);
             case 15 -> new PreprocessingStep(Operation.NORMALIZE_ROBUST,    col);
+            case 16 -> new PreprocessingStep(Operation.REGEX_REPLACE,       col,
+                    RegexRuleCodec.encodeToJson(new RegexRule(regexPattern, regexReplacement)));
             default -> null;
         };
         if (step == null) return;
@@ -536,37 +587,7 @@ class CleanPanel {
 
         new SwingWorker<DataSet, Void>() {
             @Override protected DataSet doInBackground() {
-                DataCleaner cleaner = new DataCleaner();
-                DataSet working = base;
-                for (PreprocessingStep step : steps) {
-                    String col = step.column();
-                    switch (step.operation()) {
-                        case DROP_MISSING_ROWS   -> cleaner.dropMissingRows(working);
-                        case FILL_MISSING_MEAN   -> cleaner.fillMissingWithMean(working, col);
-                        case FILL_MISSING_MEDIAN -> cleaner.fillMissingWithMedian(working, col);
-                        case FILL_MISSING_MODE   -> cleaner.fillMissingWithMode(working, col);
-                        case FILL_MISSING_CUSTOM -> cleaner.fillMissingWith(working, col, step.param());
-                        case REMOVE_DUPLICATES   -> cleaner.removeDuplicates(working);
-                        case REMOVE_OUTLIERS_IQR -> cleaner.removeOutliers(working, col);
-                        case NORMALIZE_MINMAX    -> cleaner.normalizeMinMax(working, col);
-                        case NORMALIZE_ZSCORE    -> cleaner.normalizeZScore(working, col);
-                        case CAST_COLUMN         -> cleaner.castColumn(working, col, step.param());
-                        case TRAIN_TEST_SPLIT    -> { /* Python-only — no Java transformation */ }
-                        case LABEL_ENCODE        -> cleaner.labelEncode(working, col);
-                        case ONE_HOT_ENCODE      -> cleaner.oneHotEncode(working, col);
-                        case SORT_COLUMN         -> cleaner.sortColumn(working, col,
-                                                       !"descending".equals(step.param()));
-                        case FILTER_ROWS         -> {
-                            String raw = step.param() != null ? step.param() : "==|";
-                            int    sep = raw.indexOf('|');
-                            String op  = sep > 0 ? raw.substring(0, sep) : "==";
-                            String val = sep >= 0 ? raw.substring(sep + 1) : "";
-                            cleaner.filterRows(working, col, op, val);
-                        }
-                        case NORMALIZE_ROBUST -> cleaner.normalizeRobustScaler(working, col);
-                    }
-                }
-                return working;
+                return new PipelineExecutor().apply(base, steps);
             }
 
             @Override protected void done() {
@@ -586,6 +607,72 @@ class CleanPanel {
                 } catch (Exception ex) {
                     updateButtonStates();   // re-enable even on failure
                     onStatus.accept("Apply failed: " + ex.getMessage());
+                }
+            }
+        }.execute();
+    }
+
+    private void batchProcessFiles() {
+        DataSet ds = getDataSet.get();
+        if (ds == null) {
+            onStatus.accept("Load a dataset first.");
+            return;
+        }
+        if (pendingSteps.isEmpty()) {
+            onStatus.accept("Add at least one pipeline step before batch processing.");
+            return;
+        }
+
+        FileChooserDescriptor descriptor = new FileChooserDescriptor(
+                true, false, false, false, false, true
+        )
+                .withFileFilter(f -> {
+                    if (f.isDirectory()) return true;
+                    String ext = f.getExtension();
+                    return "csv".equalsIgnoreCase(ext)
+                            || "xlsx".equalsIgnoreCase(ext)
+                            || "json".equalsIgnoreCase(ext);
+                })
+                .withTitle("Choose Files to Batch Process")
+                .withDescription("Apply the current pipeline to multiple CSV, Excel, or JSON files");
+
+        FileChooser.chooseFiles(descriptor, project, null, this::processSelectedBatchFiles);
+    }
+
+    private void processSelectedBatchFiles(List<VirtualFile> selectedFiles) {
+        if (selectedFiles.isEmpty()) {
+            onStatus.accept("Batch processing cancelled.");
+            return;
+        }
+
+        List<Path> filePaths = new ArrayList<>();
+        for (VirtualFile file : selectedFiles) {
+            filePaths.add(Path.of(file.getPath()));
+        }
+        List<PreprocessingStep> steps = new ArrayList<>(pendingSteps);
+
+        isApplying = true;
+        updateButtonStates();
+        onStatus.accept("Batch processing " + filePaths.size() + " file(s)...");
+
+        new SwingWorker<BatchSummary, Void>() {
+            @Override protected BatchSummary doInBackground() {
+                BatchSummary summary = new BatchProcessor().process(filePaths, steps);
+                refreshBatchOutputs(summary);
+                return summary;
+            }
+
+            @Override protected void done() {
+                isApplying = false;
+                updateButtonStates();
+                try {
+                    BatchSummary summary = get();
+                    showBatchSummary(summary);
+                } catch (Exception ex) {
+                    onStatus.accept("Batch processing failed: " + ex.getMessage());
+                    Messages.showErrorDialog(project,
+                            "Could not complete batch processing:\n" + ex.getMessage(),
+                            "Data Preprocessor");
                 }
             }
         }.execute();
@@ -693,6 +780,7 @@ class CleanPanel {
         if (generateSqlBtn != null) generateSqlBtn.setEnabled(hasSteps && idle);
         if (exportBtn   != null) exportBtn.setEnabled(hasCleaned && idle);
         if (copyTsvBtn  != null) copyTsvBtn.setEnabled(hasCleaned && idle);
+        if (batchProcessBtn != null) batchProcessBtn.setEnabled(hasSteps && idle);
         // ── Pipeline management ───────────────────────────────────────────────
         // Locked during Apply so the pipeline cannot be modified mid-flight —
         // if steps were reordered or removed while the worker runs, the exported
@@ -718,6 +806,48 @@ class CleanPanel {
             }
         }
         return project.getBaseDir();
+    }
+
+    private void refreshBatchOutputs(BatchSummary summary) {
+        for (BatchFileResult result : summary.results()) {
+            if (result.output() != null) {
+                LocalFileSystem.getInstance().refreshAndFindFileByNioFile(result.output());
+            }
+        }
+    }
+
+    private void showBatchSummary(BatchSummary summary) {
+        onStatus.accept("Batch complete: " + summary.successCount() + " succeeded, "
+                + summary.skippedCount() + " skipped, " + summary.failedCount() + " failed.");
+
+        if (summary.skippedCount() == 0 && summary.failedCount() == 0) {
+            Messages.showInfoMessage(project,
+                    "Batch processing complete.\n\n"
+                            + summary.successCount() + " file(s) exported as cleaned CSV.",
+                    "Data Preprocessor");
+            return;
+        }
+
+        StringBuilder details = new StringBuilder();
+        details.append("Batch processing complete.\n\n")
+                .append(summary.successCount()).append(" succeeded\n")
+                .append(summary.skippedCount()).append(" skipped\n")
+                .append(summary.failedCount()).append(" failed\n\n");
+
+        int shown = 0;
+        for (BatchFileResult result : summary.results()) {
+            if (result.success()) continue;
+            if (shown++ >= 8) {
+                details.append("More files omitted from this summary.");
+                break;
+            }
+            details.append(result.source().getFileName())
+                    .append(": ")
+                    .append(result.message())
+                    .append("\n");
+        }
+
+        Messages.showWarningDialog(project, details.toString(), "Data Preprocessor");
     }
 
 
@@ -819,7 +949,18 @@ class CleanPanel {
                 yield "Filter" + col + " " + op + " \"" + val + "\"";
             }
             case NORMALIZE_ROBUST -> "Robust normalize" + col;
+            case REGEX_REPLACE -> {
+                RegexRule rule = RegexRuleCodec.decodeFromJson(s.param());
+                yield "Regex replace" + col + " /" + truncate(rule.pattern(), 24)
+                        + "/ -> \"" + truncate(rule.replacement(), 24) + "\"";
+            }
         };
+    }
+
+    private String truncate(String value, int max) {
+        if (value == null) return "";
+        if (value.length() <= max) return value;
+        return value.substring(0, Math.max(0, max - 3)) + "...";
     }
 
     private String toTsv(DataSet ds) {

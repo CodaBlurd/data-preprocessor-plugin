@@ -6,6 +6,8 @@ import com.datapreprocessor.model.DataSet;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 
 import java.util.*;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 
 /**
@@ -132,6 +134,33 @@ public class DataCleaner {
     public DataSet removeDuplicates(DataSet ds) {
         Set<String> seen = new LinkedHashSet<>();
         ds.getRows().removeIf(row -> !seen.add(String.join("\u0000", toStringList(row))));
+        return ds;
+    }
+
+
+
+    //  ========================================================================
+    // Custom Regex Cleaning Rules
+    //  ========================================================================
+
+    public DataSet regexReplace(DataSet ds, String column, String regexPattern, String replacement) {
+        int colIndex = ds.getHeaders().indexOf(column);
+        if (colIndex < 0) return ds;
+
+        Pattern compiledPattern;
+        try {
+             compiledPattern = Pattern.compile(regexPattern);
+        } catch (PatternSyntaxException e) {
+            throw new IllegalArgumentException("Invalid regex pattern: " + regexPattern, e);
+        }
+
+        for (List<String> row : ds.getRows()) {
+            if (colIndex >= row.size()) continue;
+            String value = row.get(colIndex);
+            if (value == null || value.isBlank()) continue;
+            row.set(colIndex, compiledPattern.matcher(value).replaceAll(replacement != null ? replacement : ""));
+        }
+
         return ds;
     }
 

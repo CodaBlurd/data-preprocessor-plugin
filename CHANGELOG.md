@@ -7,6 +7,37 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.8.0] — 2026-06-10
+
+### Added
+- **Multi-file batch mode** — the Clean tab can now apply the current preprocessing
+  pipeline to multiple `.csv`, `.xlsx`, or `.json` files in one run. Each successful
+  file is exported beside the source as `<filename>_cleaned.csv`.
+- **Batch-safe pipeline execution** — added `PipelineExecutor` so single-file Apply
+  and batch processing share the same transformation path instead of maintaining
+  separate switch logic.
+- **Batch processing internals** — added `BatchProcessor`, per-file result tracking,
+  missing-column validation, partial-failure handling, and summary reporting.
+- **Regex replace cleaning rule** — users can clean text columns with custom regex
+  find/replace rules. Replacement values support Java-style `$1`, `$2` capture groups,
+  and generated Python/R/SQL scripts translate those replacements to the equivalent
+  backslash-group syntax.
+
+### Fixed
+- **Batch work stays off the EDT** — selected files are loaded, transformed, exported,
+  and refreshed from a background worker. The Clean tab disables Apply, Generate,
+  Export, Copy TSV, Batch Process, and pipeline editing controls while the worker is
+  in flight.
+- **Per-file batch failures no longer stop the whole run** — files with unsupported
+  types, load/export errors, or missing pipeline columns are reported individually
+  while valid files continue processing.
+
+### Tests
+- Added coverage for batch success, missing-column skips, regex replacement behavior,
+  regex JSON parameter round-trip, and generated Python/R/SQL regex snippets.
+
+---
+
 ## [1.7.0] — 2026-06-06
 
 ### Added

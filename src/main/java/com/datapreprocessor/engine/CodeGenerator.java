@@ -1,6 +1,7 @@
 package com.datapreprocessor.engine;
 
 import com.datapreprocessor.model.DataSet;
+import com.datapreprocessor.model.RegexRule;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -38,7 +39,8 @@ public class CodeGenerator {
         ONE_HOT_ENCODE,
         SORT_COLUMN,
         FILTER_ROWS,
-        NORMALIZE_ROBUST;
+        NORMALIZE_ROBUST,
+        REGEX_REPLACE;
     }
 
     /**
@@ -394,6 +396,19 @@ public class CodeGenerator {
                                     "    df[%s] = (df[%s] - _med) / _iqr\n" +
                                     "# else: all values in same IQR band — column left unchanged",
                             col, col, col, col, col, col);
+
+            case REGEX_REPLACE -> {
+                RegexRule rule = decodeRegexRule(step);
+                String replacement = regexReplacementForGenerated(rule.replacement());
+                yield String.format(
+                        "# Regex replace values in %s\n" +
+                        "df[%s] = df[%s].where(\n" +
+                        "    df[%s].isna(),\n" +
+                        "    df[%s].astype(str).str.replace(%s, %s, regex=True)\n" +
+                        ")",
+                        col, col, col, col, col,
+                        pyString(rule.pattern()), pyString(replacement));
+            }
         };
     }
 
@@ -557,6 +572,16 @@ public class CodeGenerator {
                     "if (.iqr != 0) { %s <- (%s - .med) / .iqr }" +
                     "  # else: all values in same IQR band — column left unchanged",
                     col, colRef, colRef, colRef, colRef);
+
+            case REGEX_REPLACE -> {
+                RegexRule rule = decodeRegexRule(step);
+                String replacement = regexReplacementForGenerated(rule.replacement());
+                yield String.format(
+                    "# Regex replace values in %s\n" +
+                    ".idx <- !is.na(%s)\n" +
+                    "%s[.idx] <- gsub(%s, %s, as.character(%s[.idx]), perl = TRUE)",
+                    col, colRef, colRef, rString(rule.pattern()), rString(replacement), colRef);
+            }
         };
     }
 
@@ -721,6 +746,17 @@ public class CodeGenerator {
                     "        FROM " + previous + "\n" +
                     "        WHERE " + qCol + " IS NOT NULL\n" +
                     "    ) s";
+
+            case REGEX_REPLACE -> {
+                RegexRule rule = decodeRegexRule(step);
+                String replacement = regexReplacementForGenerated(rule.replacement());
+                yield "    -- Regex replace values in " + col + "\n" +
+                        "    SELECT " + projectionReplacing(headers, col,
+                                "REGEXP_REPLACE(CAST(" + qCol + " AS TEXT), " +
+                                        sqlLiteral(rule.pattern()) + ", " +
+                                        sqlLiteral(replacement) + ", 'g')") + "\n" +
+                        "    FROM " + previous;
+            }
         };
     }
 
@@ -749,6 +785,51 @@ public class CodeGenerator {
 
     private String sqlLiteral(String value) {
         return "'" + (value != null ? value : "").replace("'", "''") + "'";
+    }
+
+    private RegexRule decodeRegexRule(PreprocessingStep step) {
+        if (step.param() == null || step.param().isBlank()) {
+            return new RegexRule("", "");
+        }
+        return RegexRuleCodec.decodeFromJson(step.param());
+    }
+
+    private String pyString(String value) {
+        return "\"" + escapeBackslashString(value) + "\"";
+    }
+
+    private String rString(String value) {
+        return "\"" + escapeBackslashString(value) + "\"";
+    }
+
+    private String escapeBackslashString(String value) {
+        return (value != null ? value : "")
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r");
+    }
+
+    private String regexReplacementForGenerated(String replacement) {
+        if (replacement == null || replacement.isEmpty()) return "";
+        StringBuilder out = new StringBuilder();
+        for (int i = 0; i < replacement.length(); i++) {
+            char ch = replacement.charAt(i);
+            if (ch == '\\' && i + 1 < replacement.length()) {
+                char next = replacement.charAt(++i);
+                out.append(next);
+                continue;
+            }
+            if (ch == '$' && i + 1 < replacement.length() && Character.isDigit(replacement.charAt(i + 1))) {
+                out.append('\\');
+                while (i + 1 < replacement.length() && Character.isDigit(replacement.charAt(i + 1))) {
+                    out.append(replacement.charAt(++i));
+                }
+                continue;
+            }
+            out.append(ch);
+        }
+        return out.toString();
     }
 
     private String sqlOperator(String op) {
