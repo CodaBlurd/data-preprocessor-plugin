@@ -1,11 +1,11 @@
 <idea-plugin>
     <id>com.datapreprocessor.plugin</id>
     <name>Data Preprocessor</name>
-    <version>1.8.0</version>
+    <version>1.8.1</version>
     <vendor email="admin@keencodelabs.com" url="https://github.com/codaBlurd/data-preprocessor-plugin">
         Keen Code Labs
     </vendor>
-    <product-descriptor code="PDATAPREPROCESS" release-date="20260610" release-version="18" optional="true"/>
+    <product-descriptor code="PDATAPREPROCESS" release-date="20260612" release-version="181" optional="true"/>
 
     <description><![CDATA[
         <p>Stop writing repetitive pandas preprocessing scripts.</p>

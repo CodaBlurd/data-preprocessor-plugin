@@ -5,6 +5,7 @@ import com.datapreprocessor.engine.DataCleaner;
 import com.datapreprocessor.engine.DataLoader;
 import com.datapreprocessor.licensing.ProFeature;
 import com.datapreprocessor.licensing.ProFeatureGate;
+import com.datapreprocessor.licensing.ProUpgradeUi;
 import com.datapreprocessor.model.ColumnProfile;
 import com.datapreprocessor.model.DataSet;
 import com.intellij.openapi.fileChooser.FileChooser;
@@ -194,13 +195,27 @@ public class DataPreprocessorToolWindow {
         }
 
         JPanel panel = new JPanel(new BorderLayout());
+        JPanel content = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.insets = new Insets(0, 0, 10, 0);
+
         JLabel message = new JLabel(
                 "<html><center><b>" + ProFeatureGate.lockedMessage(ProFeature.VISUALISATIONS) + "</b><br><br>"
                         + ProFeatureGate.unlockHint() + "</center></html>",
                 SwingConstants.CENTER
         );
         message.setForeground(JBColor.GRAY);
-        panel.add(message, BorderLayout.CENTER);
+        content.add(message, gbc);
+
+        JButton upgradeButton = new JButton("Upgrade to Pro");
+        upgradeButton.addActionListener(e -> ProUpgradeUi.openPricingPage());
+        gbc.gridy = 1;
+        gbc.insets = new Insets(0, 0, 0, 0);
+        content.add(upgradeButton, gbc);
+
+        panel.add(content, BorderLayout.CENTER);
         return panel;
     }
 

@@ -12,6 +12,7 @@ import com.datapreprocessor.engine.CodeGenerator.Operation;
 import com.datapreprocessor.engine.CodeGenerator.PreprocessingStep;
 import com.datapreprocessor.licensing.ProFeature;
 import com.datapreprocessor.licensing.ProFeatureGate;
+import com.datapreprocessor.licensing.ProUpgradeUi;
 import com.datapreprocessor.model.ColumnProfile;
 import com.datapreprocessor.model.ColumnProfile.DataType;
 import com.datapreprocessor.model.DataSet;
@@ -813,9 +814,7 @@ class CleanPanel {
 
         String message = ProFeatureGate.lockedMessage(feature);
         onStatus.accept(message);
-        Messages.showInfoMessage(project,
-                message + "\n\n" + ProFeatureGate.unlockHint(),
-                "Data Preprocessor Pro");
+        ProUpgradeUi.showLockedDialog(project, feature);
         return false;
     }
 

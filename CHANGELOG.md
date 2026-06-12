@@ -7,6 +7,21 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.8.1] — 2026-06-12
+
+### Added
+- **Upgrade to Pro path** — locked Pro feature dialogs now include an
+  **Upgrade to Pro** button that opens the JetBrains Marketplace pricing page.
+  The locked Visualise tab also shows a direct upgrade button instead of leaving
+  users at a dead end.
+
+### Changed
+- **Marketplace product descriptor** — release metadata bumped to
+  `release-date="20260612"` and `release-version="181"` for the 1.8.1 paid
+  plugin update.
+
+---
+
 ## [1.8.0] — 2026-06-10
 
 ### Added
