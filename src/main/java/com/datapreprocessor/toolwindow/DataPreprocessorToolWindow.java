@@ -71,6 +71,8 @@ public class DataPreprocessorToolWindow {
     private final JPanel        root       = new JPanel(new BorderLayout());
     private final JLabel        statusLabel = new JLabel(" ");
     private final JBTabbedPane  tabs        = new JBTabbedPane();
+    private JComponent          visualiseContent;
+    private boolean             visualiseLicensePromptPending;
 
     // ── Constructor ───────────────────────────────────────────────────────────
 
@@ -174,10 +176,23 @@ public class DataPreprocessorToolWindow {
         tabs.addTab("📋 Column Profiles",   profilePanel.getContent());
         tabs.addTab("🧹 Clean & Transform", cleanContent);
         tabs.addTab("💻 Generated Code",    codePanel.getContent());
-        tabs.addTab("📈 Visualise  [Pro]", visualiseTabContent());
+        visualiseContent = visualiseTabContent();
+        tabs.addTab("📈 Visualise  [Pro]", visualiseContent);
         tabs.addChangeListener(e -> {
             if (tabs.getSelectedComponent() == cleanContent) {
                 cleanPanel.refreshSettingsDefaults();
+            }
+            if (tabs.getSelectedComponent() == visualiseContent
+                    && !ProFeatureGate.isUnlocked(ProFeature.VISUALISATIONS)
+                    && !visualiseLicensePromptPending) {
+                visualiseLicensePromptPending = true;
+                SwingUtilities.invokeLater(() -> {
+                    visualiseLicensePromptPending = false;
+                    if (tabs.getSelectedComponent() == visualiseContent
+                            && !ProFeatureGate.isUnlocked(ProFeature.VISUALISATIONS)) {
+                        ProUpgradeUi.showLockedDialog(project, ProFeature.VISUALISATIONS);
+                    }
+                });
             }
         });
         root.add(tabs, BorderLayout.CENTER);
@@ -210,7 +225,7 @@ public class DataPreprocessorToolWindow {
         content.add(message, gbc);
 
         JButton upgradeButton = new JButton("Upgrade to Pro");
-        upgradeButton.addActionListener(e -> ProUpgradeUi.openPricingPage());
+        upgradeButton.addActionListener(e -> ProUpgradeUi.openLicenseManager(project));
         gbc.gridy = 1;
         gbc.insets = new Insets(0, 0, 0, 0);
         content.add(upgradeButton, gbc);

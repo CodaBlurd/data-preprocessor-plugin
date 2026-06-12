@@ -20,6 +20,7 @@ import com.datapreprocessor.model.RegexRule;
 import com.datapreprocessor.settings.DataPreprocessorSettings;
 import com.intellij.openapi.fileChooser.*;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.project.ProjectUtil;
 import com.intellij.openapi.ui.ComboBox;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.vfs.LocalFileSystem;
@@ -827,7 +828,7 @@ class CleanPanel {
                 if (sourceParent != null) return sourceParent;
             }
         }
-        return project.getBaseDir();
+        return ProjectUtil.guessProjectDir(project);
     }
 
     private void refreshBatchOutputs(BatchSummary summary) {

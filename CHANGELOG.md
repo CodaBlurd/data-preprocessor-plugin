@@ -7,13 +7,16 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-## [1.8.1] — 2026-06-12
+## [1.8.2] — 2026-06-12
 
 ### Added
-- **Upgrade to Pro path** — locked Pro feature dialogs now include an
-  **Upgrade to Pro** button that opens the JetBrains Marketplace pricing page.
-  The locked Visualise tab also shows a direct upgrade button instead of leaving
-  users at a dead end.
+- **Native Pro activation path** — locked Pro features now invoke the IDE's
+  built-in **Manage Subscriptions / Register** flow so users can start a trial
+  or activate a paid license inside the JetBrains IDE. The Marketplace pricing
+  page remains only as a fallback if the IDE action is unavailable.
+- **Visualise Pro license trigger** — selecting the locked Visualise tab now
+  triggers the same JetBrains license flow automatically instead of only showing
+  a passive locked panel.
 
 ### Changed
 - **Marketplace product descriptor** — release metadata keeps

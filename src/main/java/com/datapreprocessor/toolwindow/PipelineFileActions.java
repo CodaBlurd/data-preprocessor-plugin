@@ -10,6 +10,7 @@ import com.intellij.openapi.fileChooser.FileChooserFactory;
 import com.intellij.openapi.fileChooser.FileSaverDescriptor;
 import com.intellij.openapi.fileChooser.FileSaverDialog;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.project.ProjectUtil;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -144,7 +145,7 @@ class PipelineFileActions {
                 if (sourceParent != null) return sourceParent;
             }
         }
-        return project.getBaseDir();
+        return ProjectUtil.guessProjectDir(project);
     }
 
     private record ImportedPipeline(List<PreprocessingStep> steps, List<String> warnings) {}
