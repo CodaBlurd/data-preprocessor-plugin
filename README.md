@@ -161,6 +161,12 @@ src/main/java/com/datapreprocessor/
 │   ├── PipelineSerializer.java                  # Reads/writes .dpp pipeline JSON
 │   ├── PipelineValidator.java                   # Validates imported pipeline column references
 │   └── DataExporter.java                        # CSV and .py / .R / .sql file export
+├── licensing/
+│   ├── ProFeature.java                          # Enum of all Pro-gated features
+│   ├── ProFeatureGate.java                      # Central gate — reads JetBrains LicensingFacade
+│   └── ProUpgradeUi.java                        # Opens IDE license manager / Marketplace pricing
+├── platform/
+│   └── IntellijPlatformCompat.java              # IDE API compatibility shims
 ├── settings/
 │   ├── DataPreprocessorSettings.java            # Persistent plugin settings
 │   └── DataPreprocessorConfigurable.java        # Settings UI under Tools

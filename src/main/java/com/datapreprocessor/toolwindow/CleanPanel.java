@@ -644,7 +644,7 @@ class CleanPanel {
                 })
                 .withTitle("Choose Files to Batch Process")
                 .withDescription("Apply the current pipeline to multiple CSV, Excel, or JSON files");
-        descriptor.setForcedToUseIdeaFileChooser(true);
+//        descriptor.setForcedToUseIdeaFileChooser(true);
 
         FileChooser.chooseFiles(descriptor, project, null, this::processSelectedBatchFiles);
     }

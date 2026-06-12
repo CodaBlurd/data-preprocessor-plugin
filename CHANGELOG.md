@@ -7,6 +7,25 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.8.4] — 2026-06-12
+
+### Fixed
+- **EDT violation — Browse file chooser** — `setForcedToUseIdeaFileChooser(true)`
+  was set on the `FileChooserDescriptor` in `browseAndLoad()`. IntelliJ's dialog
+  (`FileChooserDialogImpl`) calls `FileChooserUtil.getFileToSelect()` on open to
+  restore the last-used path, which triggers a `LocalFileSystem.findFileByPath()`
+  VFS read on the EDT and a SEVERE `SlowOperations` violation. Removed the flag;
+  `FileChooser.chooseFile()` is already asynchronous and needs no wrapper.
+- **EDT violation — Pipeline import file chooser** — the same
+  `setForcedToUseIdeaFileChooser(true)` call existed in
+  `PipelineFileActions.importPipeline()` for the `.dpp` file chooser, producing an
+  identical slow-operations violation on open. Removed for the same reason.
+- **EDT violation — Batch process file chooser** — `setForcedToUseIdeaFileChooser(true)`
+  was also set on the multi-file `FileChooserDescriptor` in `CleanPanel.batchProcessFiles()`,
+  causing the same SEVERE on every batch picker open. Removed.
+
+---
+
 ## [1.8.3] — 2026-06-12
 
 ### Fixed

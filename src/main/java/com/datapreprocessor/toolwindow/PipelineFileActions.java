@@ -95,7 +95,7 @@ class PipelineFileActions {
         FileChooserDescriptor descriptor = IntellijPlatformCompat.singleFileDescriptor("dpp")
                 .withTitle("Import Data Preprocessor Pipeline")
                 .withDescription("Choose a .dpp pipeline file");
-        descriptor.setForcedToUseIdeaFileChooser(true);
+//        descriptor.setForcedToUseIdeaFileChooser(true);
 
         FileChooser.chooseFile(descriptor, project, null, file -> {
             if (file == null) return;

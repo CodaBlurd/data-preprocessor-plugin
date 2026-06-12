@@ -298,7 +298,7 @@ public class DataPreprocessorToolWindow {
                         })
                         .withTitle("Open Data File")
                         .withDescription("Select a CSV, Excel, or JSON file");
-        descriptor.setForcedToUseIdeaFileChooser(true);
+//        descriptor.setForcedToUseIdeaFileChooser(true);
 
         FileChooser.chooseFile(descriptor, project, root, null, file -> {
             if (file == null) return;
