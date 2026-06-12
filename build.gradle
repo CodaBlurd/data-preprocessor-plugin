@@ -48,6 +48,11 @@ patchPluginXml {
     untilBuild = ""
     changeNotes = """
         <ul>
+          <li><b>1.8.3</b> — Visualise Pro activation refresh: after a user starts
+              a trial or activates a Pro license, the locked Visualise tab now
+              swaps to the real chart UI without requiring an IDE restart. Pro
+              gates also read JetBrains product license data and product
+              expiration dates for active Marketplace trials.</li>
           <li><b>1.8.2</b> — Native Pro activation path: locked Pro features now
               open the JetBrains IDE <b>Manage Subscriptions / Register</b> flow
               so users can start a trial or activate a license in-product. The

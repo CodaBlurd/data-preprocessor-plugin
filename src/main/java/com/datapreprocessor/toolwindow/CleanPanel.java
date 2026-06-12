@@ -4,7 +4,6 @@ import com.datapreprocessor.engine.CodeGenerator;
 import com.datapreprocessor.engine.BatchProcessor;
 import com.datapreprocessor.engine.BatchProcessor.BatchFileResult;
 import com.datapreprocessor.engine.BatchProcessor.BatchSummary;
-import com.datapreprocessor.engine.DataCleaner;
 import com.datapreprocessor.engine.DataExporter;
 import com.datapreprocessor.engine.PipelineExecutor;
 import com.datapreprocessor.engine.RegexRuleCodec;
@@ -815,7 +814,7 @@ class CleanPanel {
 
         String message = ProFeatureGate.lockedMessage(feature);
         onStatus.accept(message);
-        ProUpgradeUi.showLockedDialog(project, feature);
+        ProUpgradeUi.showLockedDialog(project);
         return false;
     }
 

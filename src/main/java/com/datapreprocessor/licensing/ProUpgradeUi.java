@@ -51,7 +51,7 @@ public final class ProUpgradeUi {
         });
     }
 
-    public static void showLockedDialog(Project project, ProFeature feature) {
+    public static void showLockedDialog(Project project) {
         openLicenseManager(project);
     }
 }

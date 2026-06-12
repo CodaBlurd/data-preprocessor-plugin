@@ -1,5 +1,6 @@
 package com.datapreprocessor.toolwindow;
 
+import com.intellij.openapi.Disposable;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.wm.ToolWindow;
@@ -28,11 +29,13 @@ public class DataPreprocessorToolWindowFactory implements ToolWindowFactory {
     public void createToolWindowContent(@NotNull Project project,
                                         @NotNull ToolWindow toolWindow) {
 
-        DataPreprocessorToolWindow panel = new DataPreprocessorToolWindow(project);
+        Disposable panelDisposable = Disposer.newDisposable("Data Preprocessor tool window");
+        DataPreprocessorToolWindow panel = new DataPreprocessorToolWindow(project, panelDisposable);
         PANELS.put(project, panel);
 
         ContentFactory cf      = ContentFactory.getInstance();
         Content        content = cf.createContent(panel.getContent(), "", false);
+        content.setDisposer(panelDisposable);
         toolWindow.getContentManager().addContent(content);
 
         // Clean up when the tool window (and its project) is disposed.

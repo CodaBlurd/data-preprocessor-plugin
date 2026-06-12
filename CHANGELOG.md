@@ -7,6 +7,18 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.8.3] — 2026-06-12
+
+### Fixed
+- **Visualise Pro activation refresh** — after a user starts a trial or activates
+  a Pro license, the locked Visualise tab now swaps to the real chart UI without
+  requiring an IDE restart.
+- **Active trial detection** — Pro gates now also read JetBrains product license
+  data and product expiration dates, covering active Marketplace trials exposed
+  outside the confirmation-stamp path.
+
+---
+
 ## [1.8.2] — 2026-06-12
 
 ### Added

@@ -2,6 +2,8 @@ package com.datapreprocessor.licensing;
 
 import com.intellij.ui.LicensingFacade;
 
+import java.util.Date;
+
 /**
  * Central gate for Pro-only functionality.
  */
@@ -24,7 +26,19 @@ public final class ProFeatureGate {
             return false;
         }
 
-        return isLicensedConfirmationStamp(facade.getConfirmationStamp(PRODUCT_CODE));
+        if (isLicensedConfirmationStamp(facade.getConfirmationStamp(PRODUCT_CODE))) {
+            return true;
+        }
+
+        if (facade.productLicenses != null) {
+            LicensingFacade.ProductLicenseData license = facade.productLicenses.get(PRODUCT_CODE);
+            if (license != null) {
+                return isLicensedConfirmationStamp(license.confirmationStamp)
+                        || isActiveExpirationDate(license.expirationDate);
+            }
+        }
+
+        return isActiveExpirationDate(facade.getExpirationDate(PRODUCT_CODE));
     }
 
     public static String lockedMessage(ProFeature feature) {
@@ -57,5 +71,9 @@ public final class ProFeatureGate {
         } catch (NumberFormatException ignored) {
             return false;
         }
+    }
+
+    private static boolean isActiveExpirationDate(Date expirationDate) {
+        return expirationDate != null && expirationDate.getTime() > System.currentTimeMillis();
     }
 }

@@ -1,6 +1,5 @@
 package com.datapreprocessor.toolwindow;
 
-import com.datapreprocessor.engine.CodeGenerator;
 import com.datapreprocessor.engine.DataCleaner;
 import com.datapreprocessor.engine.DataLoader;
 import com.datapreprocessor.licensing.ProFeature;
@@ -8,13 +7,15 @@ import com.datapreprocessor.licensing.ProFeatureGate;
 import com.datapreprocessor.licensing.ProUpgradeUi;
 import com.datapreprocessor.model.ColumnProfile;
 import com.datapreprocessor.model.DataSet;
+import com.intellij.openapi.Disposable;
 import com.intellij.openapi.fileChooser.FileChooser;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
-import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.ui.JBColor;
+import com.intellij.ui.LicensingFacade;
 import com.intellij.ui.components.JBTabbedPane;
 import org.jetbrains.annotations.NotNull;
 
@@ -54,6 +55,7 @@ import java.util.List;
 public class DataPreprocessorToolWindow {
 
     private final Project project;
+    private final Disposable parentDisposable;
 
     // ── Shared state ──────────────────────────────────────────────────────────
     private DataSet             currentDataSet;
@@ -66,6 +68,7 @@ public class DataPreprocessorToolWindow {
     private final CleanPanel     cleanPanel;
     private final CodePanel      codePanel;
     private final VisualisationPanel visualisationPanel;
+    private final JComponent     visualiseUnlockedContent;
 
     // ── Root UI ───────────────────────────────────────────────────────────────
     private final JPanel        root       = new JPanel(new BorderLayout());
@@ -76,8 +79,9 @@ public class DataPreprocessorToolWindow {
 
     // ── Constructor ───────────────────────────────────────────────────────────
 
-    public DataPreprocessorToolWindow(@NotNull Project project) {
+    public DataPreprocessorToolWindow(@NotNull Project project, @NotNull Disposable parentDisposable) {
         this.project = project;
+        this.parentDisposable = parentDisposable;
 
         // Instantiate panels — inject only what each one needs
         headerBar   = new HeaderBarPanel(this::browseAndLoad, this::reloadCurrentFile);
@@ -96,8 +100,10 @@ public class DataPreprocessorToolWindow {
                 this::onStepCountChanged); // tab badge update
 
         visualisationPanel = new VisualisationPanel();
+        visualiseUnlockedContent = visualisationPanel.getContent();
 
         buildUi();
+        subscribeToLicenseChanges();
     }
 
     // =========================================================================
@@ -148,7 +154,7 @@ public class DataPreprocessorToolWindow {
      *
      * <p><b>Warning:</b> {@link DataCleaner#profileColumns} is O(n·columns) and runs
      * on the calling thread.  Prefer {@link #loadDataSet(DataSet, List)} and compute
-     * profiles in a {@link SwingWorker#doInBackground()} block.</p>
+     * profiles in a swing worker doInBackground() block.</p>
      */
     public void loadDataSet(DataSet ds) {
         loadDataSet(ds, new DataCleaner().profileColumns(ds));
@@ -183,14 +189,19 @@ public class DataPreprocessorToolWindow {
                 cleanPanel.refreshSettingsDefaults();
             }
             if (tabs.getSelectedComponent() == visualiseContent
-                    && !ProFeatureGate.isUnlocked(ProFeature.VISUALISATIONS)
+                    && ProFeatureGate.isUnlocked(ProFeature.VISUALISATIONS)) {
+                refreshVisualiseTabForLicense();
+            } else if (tabs.getSelectedComponent() == visualiseContent
                     && !visualiseLicensePromptPending) {
                 visualiseLicensePromptPending = true;
                 SwingUtilities.invokeLater(() -> {
                     visualiseLicensePromptPending = false;
-                    if (tabs.getSelectedComponent() == visualiseContent
-                            && !ProFeatureGate.isUnlocked(ProFeature.VISUALISATIONS)) {
-                        ProUpgradeUi.showLockedDialog(project, ProFeature.VISUALISATIONS);
+                    if (tabs.getSelectedComponent() == visualiseContent) {
+                        if (ProFeatureGate.isUnlocked(ProFeature.VISUALISATIONS)) {
+                            refreshVisualiseTabForLicense();
+                            return;
+                        }
+                        ProUpgradeUi.showLockedDialog(project);
                     }
                 });
             }
@@ -206,7 +217,7 @@ public class DataPreprocessorToolWindow {
 
     private JComponent visualiseTabContent() {
         if (ProFeatureGate.isUnlocked(ProFeature.VISUALISATIONS)) {
-            return visualisationPanel.getContent();
+            return visualiseUnlockedContent;
         }
 
         JPanel panel = new JPanel(new BorderLayout());
@@ -225,13 +236,51 @@ public class DataPreprocessorToolWindow {
         content.add(message, gbc);
 
         JButton upgradeButton = new JButton("Upgrade to Pro");
-        upgradeButton.addActionListener(e -> ProUpgradeUi.openLicenseManager(project));
+        upgradeButton.addActionListener(e -> {
+            if (ProFeatureGate.isUnlocked(ProFeature.VISUALISATIONS)) {
+                refreshVisualiseTabForLicense();
+                return;
+            }
+            ProUpgradeUi.openLicenseManager(project);
+        });
         gbc.gridy = 1;
         gbc.insets = new Insets(0, 0, 0, 0);
         content.add(upgradeButton, gbc);
 
         panel.add(content, BorderLayout.CENTER);
         return panel;
+    }
+
+    private void subscribeToLicenseChanges() {
+        ApplicationManager.getApplication()
+                .getMessageBus()
+                .connect(parentDisposable)
+                .subscribe(LicensingFacade.LicenseStateListener.TOPIC,
+                        new LicensingFacade.LicenseStateListener() {
+                            @Override
+                            public void licenseStateChanged(LicensingFacade newState) {
+                                SwingUtilities.invokeLater(DataPreprocessorToolWindow.this::refreshVisualiseTabForLicense);
+                            }
+                        });
+    }
+
+    private void refreshVisualiseTabForLicense() {
+        if (!ProFeatureGate.isUnlocked(ProFeature.VISUALISATIONS)
+                || visualiseContent == visualiseUnlockedContent) {
+            return;
+        }
+
+        int index = tabs.indexOfComponent(visualiseContent);
+        if (index < 0) {
+            return;
+        }
+
+        visualiseContent = visualiseUnlockedContent;
+        tabs.setComponentAt(index, visualiseContent);
+        if (currentDataSet != null) {
+            visualisationPanel.onDataSetLoaded(currentDataSet, columnProfiles);
+        }
+        tabs.setSelectedComponent(visualiseContent);
     }
 
     // =========================================================================
