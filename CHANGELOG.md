@@ -7,7 +7,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-## [1.8.4] — 2026-06-12
+## [1.8.5] — 2026-06-12
 
 ### Changed
 - **Android Studio — all Pro features unlocked** — Android Studio is built on
@@ -16,6 +16,10 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and the IDE "Register" action does not exist, so no upgrade path was available to
   Android Studio users. Pro features are now unlocked unconditionally when the plugin
   detects it is running inside Android Studio.
+
+---
+
+## [1.8.4] — 2026-06-12
 
 ### Fixed
 - **EDT violation — Browse file chooser** — `setForcedToUseIdeaFileChooser(true)`

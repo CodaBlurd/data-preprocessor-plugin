@@ -48,6 +48,18 @@ patchPluginXml {
     untilBuild = ""
     changeNotes = """
         <ul>
+          <li><b>1.8.5</b> — Android Studio support: Pro features (R code generation,
+              SQL code generation, column visualisations, regex cleaning rules, pipeline
+              import/export, and batch processing) are now unlocked unconditionally when
+              running inside Android Studio. Android Studio does not initialise JetBrains'
+              licensing subsystem, so no upgrade path existed for Android Studio users
+              previously.</li>
+          <li><b>1.8.4</b> — EDT fixes: removed <code>setForcedToUseIdeaFileChooser(true)</code>
+              from the Browse, Pipeline Import, and Batch Process file choosers. IntelliJ's
+              dialog was triggering a VFS read on the Event Dispatch Thread on every open,
+              producing a SEVERE SlowOperations log violation.
+              <code>FileChooser.chooseFile/chooseFiles</code> is already asynchronous and
+              needs no forced dialog type.</li>
           <li><b>1.8.3</b> — Visualise Pro activation refresh: after a user starts
               a trial or activates a Pro license, the locked Visualise tab now
               swaps to the real chart UI without requiring an IDE restart. Pro
