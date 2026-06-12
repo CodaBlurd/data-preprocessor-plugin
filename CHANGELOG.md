@@ -17,7 +17,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 - **Marketplace product descriptor** — release metadata bumped to
-  `release-date="20260612"` and `release-version="181"` for the 1.8.1 paid
+  `release-date="20260612"` while keeping `release-version="18"` for the 1.8.x
   plugin update.
 
 ---

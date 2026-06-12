@@ -51,7 +51,7 @@ patchPluginXml {
           <li><b>1.8.1</b> — Upgrade path polish: locked Pro feature dialogs now
               include an <b>Upgrade to Pro</b> button that opens the JetBrains
               Marketplace pricing page. The locked Visualise tab also includes
-              the same direct upgrade action. Product descriptor release metadata
+              the same direct upgrade action. Product descriptor release date
               was bumped for the paid 1.8.1 update.</li>
           <li><b>1.8.0</b> — Pro tier preparation and batch mode: R code generation,
               SQL code generation, column visualisations, regex cleaning rules,

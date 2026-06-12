@@ -5,7 +5,7 @@
     <vendor email="admin@keencodelabs.com" url="https://github.com/codaBlurd/data-preprocessor-plugin">
         Keen Code Labs
     </vendor>
-    <product-descriptor code="PDATAPREPROCESS" release-date="20260612" release-version="181" optional="true"/>
+    <product-descriptor code="PDATAPREPROCESS" release-date="20260612" release-version="18" optional="true"/>
 
     <description><![CDATA[
         <p>Stop writing repetitive pandas preprocessing scripts.</p>
