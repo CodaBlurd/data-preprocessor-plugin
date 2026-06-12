@@ -1,11 +1,18 @@
 package com.datapreprocessor.licensing;
 
+import com.intellij.openapi.application.ApplicationInfo;
 import com.intellij.ui.LicensingFacade;
 
 import java.util.Date;
 
 /**
  * Central gate for Pro-only functionality.
+ *
+ * <p>Android Studio is built on IntelliJ Community code but is a Google product —
+ * it never initialises JetBrains' licensing subsystem, so {@link LicensingFacade#getInstance()}
+ * always returns {@code null} there and the "Register" IDE action does not exist.
+ * Pro features are therefore unlocked unconditionally in Android Studio so that
+ * Android Studio users are not permanently locked out with no upgrade path.</p>
  */
 public final class ProFeatureGate {
     /**
@@ -21,8 +28,23 @@ public final class ProFeatureGate {
     private ProFeatureGate() {}
 
     public static boolean isUnlocked(ProFeature feature) {
+        if (isAndroidStudio()) return true;
         LicensingFacade facade = LicensingFacade.getInstance();
         return isUnlocked(facade);
+    }
+
+    /**
+     * Returns {@code true} when running inside Android Studio.
+     * Android Studio does not initialise JetBrains' {@link LicensingFacade}, so
+     * paid-plugin licensing is unavailable there regardless of any purchase.
+     */
+    static boolean isAndroidStudio() {
+        try {
+            String name = ApplicationInfo.getInstance().getFullApplicationName();
+            return name != null && name.toLowerCase().contains("android studio");
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     static boolean isUnlocked(LicensingFacade facade) {

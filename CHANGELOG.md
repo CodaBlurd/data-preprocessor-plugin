@@ -9,6 +9,14 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [1.8.4] — 2026-06-12
 
+### Changed
+- **Android Studio — all Pro features unlocked** — Android Studio is built on
+  IntelliJ Community code but is a Google product and never initialises JetBrains'
+  licensing subsystem. `LicensingFacade.getInstance()` always returns `null` there
+  and the IDE "Register" action does not exist, so no upgrade path was available to
+  Android Studio users. Pro features are now unlocked unconditionally when the plugin
+  detects it is running inside Android Studio.
+
 ### Fixed
 - **EDT violation — Browse file chooser** — `setForcedToUseIdeaFileChooser(true)`
   was set on the `FileChooserDescriptor` in `browseAndLoad()`. IntelliJ's dialog
