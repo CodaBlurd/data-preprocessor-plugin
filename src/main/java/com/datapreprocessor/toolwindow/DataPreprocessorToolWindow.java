@@ -10,7 +10,6 @@ import com.datapreprocessor.model.DataSet;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.fileChooser.FileChooser;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
-import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
@@ -289,7 +288,7 @@ public class DataPreprocessorToolWindow {
 
     private void browseAndLoad() {
         FileChooserDescriptor descriptor =
-                FileChooserDescriptorFactory.createSingleFileDescriptor()
+                new FileChooserDescriptor(true, false, false, false, false, false)
                         .withFileFilter(f -> {
                             if (f.isDirectory()) return true;
                             String ext = f.getExtension();

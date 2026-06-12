@@ -1,6 +1,7 @@
 package com.datapreprocessor.toolwindow;
 
 import com.datapreprocessor.engine.DataExporter;
+import com.datapreprocessor.platform.IntellijPlatformCompat;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.fileChooser.FileChooserFactory;
 import com.intellij.openapi.fileChooser.FileSaverDescriptor;
@@ -146,7 +147,7 @@ class CodePanel {
         };
         Path defaultOutput = Paths.get(defaultPath);
 
-        FileSaverDescriptor descriptor = new FileSaverDescriptor(
+        FileSaverDescriptor descriptor = IntellijPlatformCompat.saveDescriptor(
                 "Save Script",
                 "Choose where to save the generated script"
         );

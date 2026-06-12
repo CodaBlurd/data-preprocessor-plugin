@@ -1,5 +1,6 @@
 package com.datapreprocessor.licensing;
 
+import com.datapreprocessor.platform.IntellijPlatformCompat;
 import com.intellij.ide.BrowserUtil;
 import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.actionSystem.ActionPlaces;
@@ -38,15 +39,16 @@ public final class ProUpgradeUi {
                     .add(DIRECT_REGISTER_REQUEST_KEY, Boolean.TRUE)
                     .add(CommonDataKeys.PROJECT, project)
                     .build();
-            registerAction.actionPerformed(
+            IntellijPlatformCompat.performAction(
+                    registerAction,
                     AnActionEvent.createEvent(
-                            registerAction,
-                            dataContext,
-                            null,
-                            ActionPlaces.UNKNOWN,
-                            ActionUiKind.NONE,
-                            null
-                    )
+                                registerAction,
+                                dataContext,
+                                null,
+                                ActionPlaces.UNKNOWN,
+                                ActionUiKind.NONE,
+                                null
+                        )
             );
         });
     }

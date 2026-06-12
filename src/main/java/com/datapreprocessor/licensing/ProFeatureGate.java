@@ -22,6 +22,10 @@ public final class ProFeatureGate {
 
     public static boolean isUnlocked(ProFeature feature) {
         LicensingFacade facade = LicensingFacade.getInstance();
+        return isUnlocked(facade);
+    }
+
+    static boolean isUnlocked(LicensingFacade facade) {
         if (facade == null) {
             return false;
         }

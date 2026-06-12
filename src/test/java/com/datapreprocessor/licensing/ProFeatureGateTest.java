@@ -1,6 +1,10 @@
 package com.datapreprocessor.licensing;
 
+import com.intellij.ui.LicensingFacade;
 import org.junit.jupiter.api.Test;
+
+import java.util.Date;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -38,5 +42,32 @@ class ProFeatureGateTest {
         assertFalse(ProFeatureGate.isLicensedConfirmationStamp(null));
         assertFalse(ProFeatureGate.isLicensedConfirmationStamp(""));
         assertFalse(ProFeatureGate.isLicensedConfirmationStamp("unknown:value"));
+    }
+
+    @Test
+    void doesNotUnlockFromIdeLicenseExpirationAlone() {
+        LicensingFacade facade = new LicensingFacade();
+        facade.expirationDate = new Date(System.currentTimeMillis() + 60_000);
+
+        assertFalse(ProFeatureGate.isUnlocked(facade));
+    }
+
+    @Test
+    void unlocksFromProductSpecificExpiration() {
+        LicensingFacade facade = new LicensingFacade();
+        facade.expirationDates = Map.of(
+                ProFeatureGate.PRODUCT_CODE,
+                new Date(System.currentTimeMillis() + 60_000)
+        );
+
+        assertTrue(ProFeatureGate.isUnlocked(facade));
+    }
+
+    @Test
+    void unlocksFromProductSpecificConfirmationStamp() {
+        LicensingFacade facade = new LicensingFacade();
+        facade.confirmationStamps = Map.of(ProFeatureGate.PRODUCT_CODE, "key:license");
+
+        assertTrue(ProFeatureGate.isUnlocked(facade));
     }
 }

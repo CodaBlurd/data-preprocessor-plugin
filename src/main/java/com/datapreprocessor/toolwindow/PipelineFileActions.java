@@ -3,9 +3,9 @@ package com.datapreprocessor.toolwindow;
 import com.datapreprocessor.engine.CodeGenerator.PreprocessingStep;
 import com.datapreprocessor.engine.PipelineSerializer;
 import com.datapreprocessor.engine.PipelineValidator;
+import com.datapreprocessor.platform.IntellijPlatformCompat;
 import com.intellij.openapi.fileChooser.FileChooser;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
-import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory;
 import com.intellij.openapi.fileChooser.FileChooserFactory;
 import com.intellij.openapi.fileChooser.FileSaverDescriptor;
 import com.intellij.openapi.fileChooser.FileSaverDialog;
@@ -54,7 +54,7 @@ class PipelineFileActions {
         }
 
         List<PreprocessingStep> stepsSnapshot = new ArrayList<>(steps);
-        FileSaverDescriptor descriptor = new FileSaverDescriptor(
+        FileSaverDescriptor descriptor = IntellijPlatformCompat.saveDescriptor(
                 "Export Data Preprocessor Pipeline",
                 "Save the current preprocessing pipeline"
         );
@@ -92,8 +92,7 @@ class PipelineFileActions {
     }
 
     void importPipeline(List<String> currentColumnNames, Consumer<List<PreprocessingStep>> onImported) {
-        FileChooserDescriptor descriptor = FileChooserDescriptorFactory
-                .createSingleFileDescriptor("dpp")
+        FileChooserDescriptor descriptor = IntellijPlatformCompat.singleFileDescriptor("dpp")
                 .withTitle("Import Data Preprocessor Pipeline")
                 .withDescription("Choose a .dpp pipeline file");
         descriptor.setForcedToUseIdeaFileChooser(true);

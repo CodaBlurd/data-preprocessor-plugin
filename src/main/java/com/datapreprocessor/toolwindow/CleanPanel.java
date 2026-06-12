@@ -16,6 +16,7 @@ import com.datapreprocessor.model.ColumnProfile;
 import com.datapreprocessor.model.ColumnProfile.DataType;
 import com.datapreprocessor.model.DataSet;
 import com.datapreprocessor.model.RegexRule;
+import com.datapreprocessor.platform.IntellijPlatformCompat;
 import com.datapreprocessor.settings.DataPreprocessorSettings;
 import com.intellij.openapi.fileChooser.*;
 import com.intellij.openapi.project.Project;
@@ -737,7 +738,7 @@ class CleanPanel {
         String defaultPath = DataExporter.cleanedCsvPath(sourcePath);
         Path defaultOutput = Paths.get(defaultPath);
 
-        FileSaverDescriptor descriptor = new FileSaverDescriptor(
+        FileSaverDescriptor descriptor = IntellijPlatformCompat.saveDescriptor(
                 "Export Cleaned CSV",
                 "Choose where to save the cleaned CSV file"
         );
