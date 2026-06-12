@@ -16,9 +16,9 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   users at a dead end.
 
 ### Changed
-- **Marketplace product descriptor** — release metadata bumped to
-  `release-date="20260612"` while keeping `release-version="18"` for the 1.8.x
-  plugin update.
+- **Marketplace product descriptor** — release metadata keeps
+  `release-date="20260610"` and `release-version="18"` for the 1.8.x paid
+  product line, matching the approved 1.8.0 freemium release.
 
 ---
 
